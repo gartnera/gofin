@@ -48,6 +48,10 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		if err := season.Update().SetIndexNumber(parsed.Season).Exec(ctx); err != nil {
 			return err
 		}
+		// Reflect the write on the (possibly cache-shared) struct so sibling
+		// episodes in this scan don't re-issue the same update.
+		n := parsed.Season
+		season.IndexNumber = &n
 	}
 	if season.Overview == "" {
 		if err := s.applyNFO(ctx, season, nfo.Season(path, lib.Path)); err != nil {

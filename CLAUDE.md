@@ -3,11 +3,24 @@
 Minimal Jellyfin-compatible media server in Go.
 
 ## Architecture
-- `cmd/gofin` — cobra CLI: `serve`, `scan`, `user add`.
+- `cmd/gofin` — cobra CLI: `serve`, `migrate`, `user add`, `sample`.
 - `internal/config` — YAML config (`gofin.yaml`).
+- `internal/sample` — generates large synthetic libraries (empty placeholder
+  files with realistic movie/episode/track names + layouts) for benchmarking and
+  load-testing; backs the `gofin sample` command. Distinct from
+  `scripts/gen-sample-library.sh`, which ffmpeg-encodes a few real, playable
+  files for the e2e suite.
 - `ent/` — ent schema + generated code (User, AccessToken, Library, MediaItem).
-  Regenerate with `go generate ./ent/...` after editing `ent/schema/*`.
+  Regenerate with `go generate ./ent/...` after editing `ent/schema/*`. MediaItem
+  carries composite/edge indexes for the large-library query paths: a
+  `(kind, sort_name, library)` index for library grids, edge-only `parent` and
+  `library` indexes leading with the FK for folder browsing and scoping, and a
+  `(mtime, library)` index for Latest. Note ent always orders index fields
+  before edge columns, so a parent-leading composite is impossible — use an
+  edge-only index where the FK must lead.
 - `internal/db` — opens/migrates the SQLite (CGO `mattn/go-sqlite3`) ent client.
+  The on-disk DSN sets `_journal_mode=WAL&_synchronous=NORMAL` so a large scan's
+  per-row inserts don't each fsync and watcher writes don't block HTTP reads.
 - `internal/auth` — bcrypt hashing + opaque token generation.
 - `internal/scanner` — walks type-tagged libraries and builds the item
   hierarchy (movies / tvshows / music dispatchers); probes files via a
@@ -24,6 +37,21 @@ Minimal Jellyfin-compatible media server in Go.
   and date-based detection; series names are normalised (year/quality tags
   stripped) so a show's seasons merge into one Series even across directories.
   Episodes with no season default to season 1; date-only episodes are skipped.
+  `fillAdditional` diverges from the verbatim Jellyfin port for performance
+  (regexp2 backtracking made the multi-episode pass ~3.4ms/episode): it gates the
+  multipleEpisodeExpressions behind a cheap necessary-condition check
+  (`couldBeMultiEpisode`) and scopes them to the basename. Both are
+  behaviour-preserving and proven so by `TestEpisodeParseMatchesUpstream`, which
+  diffs the optimized parser against a verbatim copy of upstream over a corpus —
+  keep that test green when touching episode parsing.
+  A `ScanLibrary` builds a per-scan cache (`scanCache`): all folder rows
+  (Series/Season/Artist/Album — the bounded set) are loaded once and reused, and
+  each directory's existing playable rows are fetched in one batched query by
+  `walk` (which now indexes a directory's files before recursing). This avoids a
+  lookup-or-create query per file while keeping resident memory bounded by the
+  largest single directory, not the library size. The cache is only set for the
+  duration of a scan (under `mu`); the watcher's single-file `Index` path leaves
+  it nil and queries directly.
 - `internal/watch` — `fsnotify` watcher that keeps the index live: new/modified
   files are indexed (debounced) and removals are dropped. Started by `serve`.
 - `internal/probe` — `ffprobe`-backed media probing behind a `Prober`
@@ -68,3 +96,9 @@ Minimal Jellyfin-compatible media server in Go.
 - `go test ./... -race -cover`
 - Integration tests (`internal/server`) drive the running server with the real
   `sj14/jellyfin-go` client. `-cover` needs a complete toolchain (`covdata`).
+- Benchmarks: `go test -bench=. ./internal/scanner ./internal/server`. Scanner
+  benches cold-scan/rescan a generated 10k library; server benches seed 10k
+  movies + 10k episodes and hit the real handlers. `GOFIN_BENCH_NOINDEX=1`
+  re-runs the server benches with the query indexes dropped (A/B for index
+  effect). The e2e `crawl` also prints a SLOW API ROUTES report from the real
+  web client (`e2e/src/lib/logging.ts`).
