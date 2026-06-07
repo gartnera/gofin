@@ -733,6 +733,12 @@ func TestUnknownIncludeItemTypesReturnsEmpty(t *testing.T) {
 			t.Errorf("GetItems(%s) = %d items (total %d), want empty",
 				kind, len(res.Items), res.GetTotalRecordCount())
 		}
+		// The Latest endpoint (a bare array, with a default Limit) must also be
+		// empty for an unmodelled type, not the latest items of every kind.
+		latest := getJSON[[]map[string]any](t, env.srv.URL+"/Users/_/Items/Latest?IncludeItemTypes="+string(kind), env.token)
+		if len(latest) != 0 {
+			t.Errorf("Latest(%s) = %d items, want empty", kind, len(latest))
+		}
 	}
 }
 

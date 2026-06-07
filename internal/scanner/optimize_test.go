@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -84,6 +85,51 @@ func TestScanSkipsUnchangedFiles(t *testing.T) {
 	}
 	if prober.count() != 3 {
 		t.Fatalf("after modifying one file: probe count = %d, want 3", prober.count())
+	}
+}
+
+// TestScanLargeFlatDirectory exercises loadDirPaths's batched IN(...) lookup: a
+// flat directory with more files than the batch size must index correctly, and
+// a rescan must still recognise every file as unchanged (skip re-probing) —
+// which only works if the per-directory byPath cache is populated across all
+// batches.
+func TestScanLargeFlatDirectory(t *testing.T) {
+	root := t.TempDir()
+	movies := filepath.Join(root, "movies")
+	const n = 1200 // > the 500-path batch in loadDirPaths
+	for i := 0; i < n; i++ {
+		writeFileContent(t, filepath.Join(movies, fmt.Sprintf("Movie %04d (2000).mp4", i)), fmt.Sprintf("payload-%d", i))
+	}
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	prober := &countingProber{}
+	sc := New(client, WithProber(prober))
+	lib, err := sc.EnsureLibrary(ctx, "Movies", "movies", movies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+	if got := countKind(t, client, mediaitem.KindMovie); got != n {
+		t.Fatalf("indexed = %d, want %d", got, n)
+	}
+	if prober.count() != n {
+		t.Fatalf("first scan probe count = %d, want %d", prober.count(), n)
+	}
+	// Rescan: nothing changed, so the batched byPath lookup must mark every file
+	// unchanged and re-probe none.
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+	if prober.count() != n {
+		t.Errorf("after unchanged rescan: probe count = %d, want %d (no re-probe)", prober.count(), n)
 	}
 }
 

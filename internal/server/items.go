@@ -61,6 +61,17 @@ func parseKinds(s string) []mediaitem.Kind {
 	return kinds
 }
 
+// parseKindFilter parses IncludeItemTypes into kinds and reports whether the
+// caller named types but none map to a kind gofin stores. In that case the
+// result is definitively empty and the handler must short-circuit: leaving the
+// query unfiltered would, with Recursive=true, scan and serialise the entire
+// library (the web client requests types like MusicVideo/Playlist for carousels
+// it always renders). empty is false when no types were requested at all.
+func parseKindFilter(raw string) (kinds []mediaitem.Kind, empty bool) {
+	kinds = parseKinds(raw)
+	return kinds, raw != "" && len(kinds) == 0
+}
+
 // parseIDs converts a comma-separated list of dashless-hex item ids into UUIDs,
 // silently dropping any that don't parse.
 func parseIDs(s string) []uuid.UUID {
@@ -102,18 +113,11 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
 	recursive := q.Get("recursive") == "true" || q.Get("Recursive") == "true"
-	includeTypes := firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes")
-	kinds := parseKinds(includeTypes)
+	kinds, emptyKinds := parseKindFilter(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
 	search := firstNonEmptyQuery(q, "searchTerm", "SearchTerm")
 	ids := parseIDs(firstNonEmptyQuery(q, "ids", "Ids"))
 
-	// The web client requests types gofin doesn't model (MusicVideo, Playlist,
-	// BoxSet, …) for carousels it shows regardless of content. When the caller
-	// asked for specific types and none of them are kinds we store, the answer
-	// is definitively empty — short-circuit. Otherwise the lack of a kind filter
-	// combined with Recursive=true would scan and serialise the entire library
-	// (observed at ~1.5s on a 29k-item library) only to return nothing useful.
-	if includeTypes != "" && len(kinds) == 0 {
+	if emptyKinds {
 		writeJSON(w, http.StatusOK, jellyfin.QueryResult(nil, 0, 0))
 		return
 	}
@@ -243,8 +247,15 @@ func (s *Server) handleItemByID(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLatestItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
-	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
+	kinds, emptyKinds := parseKindFilter(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
 	limit := atoiDefault(firstNonEmptyQuery(q, "limit", "Limit"), 20)
+
+	// An unmodelled type (MusicVideo, …) matches nothing; return empty rather
+	// than the latest items of every kind (this endpoint returns a raw array).
+	if emptyKinds {
+		writeJSON(w, http.StatusOK, []api.BaseItemDto{})
+		return
+	}
 
 	query := s.client.MediaItem.Query()
 	if parentID != "" {

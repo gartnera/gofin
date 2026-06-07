@@ -112,17 +112,24 @@ func (s *Scanner) loadFolders(ctx context.Context, lib *ent.Library) (*scanCache
 // per-file round trip, while keeping only one directory resident at a time.
 func (s *Scanner) loadDirPaths(ctx context.Context, paths []string) error {
 	s.cache.byPath = make(map[string]*ent.MediaItem, len(paths))
-	if len(paths) == 0 {
-		return nil
-	}
-	existing, err := s.client.MediaItem.Query().
-		Where(mediaitem.PathIn(paths...)).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, it := range existing {
-		s.cache.byPath[it.Path] = it
+	// Look the paths up in batches: a single IN(...) binding one host parameter
+	// per path would blow SQLite's SQLITE_MAX_VARIABLE_NUMBER limit for a large
+	// flat directory (e.g. thousands of movies in one folder).
+	const batch = 500
+	for start := 0; start < len(paths); start += batch {
+		end := start + batch
+		if end > len(paths) {
+			end = len(paths)
+		}
+		existing, err := s.client.MediaItem.Query().
+			Where(mediaitem.PathIn(paths[start:end]...)).
+			All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, it := range existing {
+			s.cache.byPath[it.Path] = it
+		}
 	}
 	return nil
 }
