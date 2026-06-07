@@ -10,6 +10,7 @@ import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -26,11 +27,43 @@ var audioExts = map[string]bool{
 // Scanner indexes media libraries into the ent-backed database.
 type Scanner struct {
 	client *ent.Client
+	prober probe.Prober
+}
+
+// Option configures a Scanner.
+type Option func(*Scanner)
+
+// WithProber sets the media prober used to extract durations and stream
+// metadata. By default the scanner auto-detects ffprobe and falls back to a
+// no-op prober when it is unavailable.
+func WithProber(p probe.Prober) Option {
+	return func(s *Scanner) { s.prober = p }
 }
 
 // New returns a Scanner backed by the given ent client.
-func New(client *ent.Client) *Scanner {
-	return &Scanner{client: client}
+func New(client *ent.Client, opts ...Option) *Scanner {
+	s := &Scanner{client: client}
+	for _, opt := range opts {
+		opt(s)
+	}
+	if s.prober == nil {
+		if ff, ok := probe.Available(); ok {
+			s.prober = ff
+		} else {
+			s.prober = probe.Noop{}
+		}
+	}
+	return s
+}
+
+// probeFile probes a media file, returning empty metadata on failure so a bad
+// or unreadable file never aborts a scan.
+func (s *Scanner) probeFile(ctx context.Context, path string) probe.Result {
+	res, err := s.prober.Probe(ctx, path)
+	if err != nil {
+		return probe.Result{}
+	}
+	return res
 }
 
 // EnsureLibrary creates or updates a Library row keyed by its path so that

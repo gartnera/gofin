@@ -25,6 +25,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// EdgeTokens holds the string denoting the tokens edge name in mutations.
 	EdgeTokens = "tokens"
+	// EdgePlaystates holds the string denoting the playstates edge name in mutations.
+	EdgePlaystates = "playstates"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// TokensTable is the table that holds the tokens relation/edge.
@@ -34,6 +36,13 @@ const (
 	TokensInverseTable = "access_tokens"
 	// TokensColumn is the table column denoting the tokens relation/edge.
 	TokensColumn = "user_tokens"
+	// PlaystatesTable is the table that holds the playstates relation/edge.
+	PlaystatesTable = "play_states"
+	// PlaystatesInverseTable is the table name for the PlayState entity.
+	// It exists in this package in order to avoid circular dependency with the "playstate" package.
+	PlaystatesInverseTable = "play_states"
+	// PlaystatesColumn is the table column denoting the playstates relation/edge.
+	PlaystatesColumn = "user_playstates"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -107,10 +116,31 @@ func ByTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTokensStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByPlaystatesCount orders the results by playstates count.
+func ByPlaystatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPlaystatesStep(), opts...)
+	}
+}
+
+// ByPlaystates orders the results by playstates terms.
+func ByPlaystates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPlaystatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTokensStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TokensInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, TokensTable, TokensColumn),
+	)
+}
+func newPlaystatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PlaystatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PlaystatesTable, PlaystatesColumn),
 	)
 }

@@ -10,10 +10,14 @@ Minimal Jellyfin-compatible media server in Go.
 - `internal/db` — opens/migrates the SQLite (CGO `mattn/go-sqlite3`) ent client.
 - `internal/auth` — bcrypt hashing + opaque token generation.
 - `internal/scanner` — walks type-tagged libraries and builds the item
-  hierarchy (movies / tvshows / music dispatchers).
+  hierarchy (movies / tvshows / music dispatchers); probes files via a
+  pluggable `probe.Prober` (`WithProber`).
+- `internal/probe` — `ffprobe`-backed media probing behind a `Prober`
+  interface (with `Noop` fallback); JSON parsing is unit-tested separately.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
-  IDs are emitted as 32-char dashless hex.
-- `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware.
+  IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
+- `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;
+  play state lives in `playstate.go`, client-nicety stubs in `extras.go`.
 
 ## Conventions
 - Response bodies reuse `github.com/sj14/jellyfin-go/api` model structs so JSON

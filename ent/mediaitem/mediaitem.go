@@ -39,12 +39,16 @@ const (
 	FieldAlbumArtist = "album_artist"
 	// FieldImagePath holds the string denoting the image_path field in the database.
 	FieldImagePath = "image_path"
+	// FieldMediaStreams holds the string denoting the media_streams field in the database.
+	FieldMediaStreams = "media_streams"
 	// EdgeLibrary holds the string denoting the library edge name in mutations.
 	EdgeLibrary = "library"
 	// EdgeParent holds the string denoting the parent edge name in mutations.
 	EdgeParent = "parent"
 	// EdgeChildren holds the string denoting the children edge name in mutations.
 	EdgeChildren = "children"
+	// EdgePlaystates holds the string denoting the playstates edge name in mutations.
+	EdgePlaystates = "playstates"
 	// Table holds the table name of the mediaitem in the database.
 	Table = "media_items"
 	// LibraryTable is the table that holds the library relation/edge.
@@ -62,6 +66,13 @@ const (
 	ChildrenTable = "media_items"
 	// ChildrenColumn is the table column denoting the children relation/edge.
 	ChildrenColumn = "media_item_children"
+	// PlaystatesTable is the table that holds the playstates relation/edge.
+	PlaystatesTable = "play_states"
+	// PlaystatesInverseTable is the table name for the PlayState entity.
+	// It exists in this package in order to avoid circular dependency with the "playstate" package.
+	PlaystatesInverseTable = "play_states"
+	// PlaystatesColumn is the table column denoting the playstates relation/edge.
+	PlaystatesColumn = "media_item_playstates"
 )
 
 // Columns holds all SQL columns for mediaitem fields.
@@ -79,6 +90,7 @@ var Columns = []string{
 	FieldOverview,
 	FieldAlbumArtist,
 	FieldImagePath,
+	FieldMediaStreams,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "media_items"
@@ -247,6 +259,20 @@ func ByChildren(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newChildrenStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByPlaystatesCount orders the results by playstates count.
+func ByPlaystatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPlaystatesStep(), opts...)
+	}
+}
+
+// ByPlaystates orders the results by playstates terms.
+func ByPlaystates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPlaystatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newLibraryStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -266,5 +292,12 @@ func newChildrenStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(Table, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ChildrenTable, ChildrenColumn),
+	)
+}
+func newPlaystatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PlaystatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PlaystatesTable, PlaystatesColumn),
 	)
 }

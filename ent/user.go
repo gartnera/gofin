@@ -36,9 +36,11 @@ type User struct {
 type UserEdges struct {
 	// Tokens holds the value of the tokens edge.
 	Tokens []*AccessToken `json:"tokens,omitempty"`
+	// Playstates holds the value of the playstates edge.
+	Playstates []*PlayState `json:"playstates,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // TokensOrErr returns the Tokens value or an error if the edge
@@ -48,6 +50,15 @@ func (e UserEdges) TokensOrErr() ([]*AccessToken, error) {
 		return e.Tokens, nil
 	}
 	return nil, &NotLoadedError{edge: "tokens"}
+}
+
+// PlaystatesOrErr returns the Playstates value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) PlaystatesOrErr() ([]*PlayState, error) {
+	if e.loadedTypes[1] {
+		return e.Playstates, nil
+	}
+	return nil, &NotLoadedError{edge: "playstates"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -124,6 +135,11 @@ func (_m *User) Value(name string) (ent.Value, error) {
 // QueryTokens queries the "tokens" edge of the User entity.
 func (_m *User) QueryTokens() *AccessTokenQuery {
 	return NewUserClient(_m.config).QueryTokens(_m)
+}
+
+// QueryPlaystates queries the "playstates" edge of the User entity.
+func (_m *User) QueryPlaystates() *PlayStateQuery {
+	return NewUserClient(_m.config).QueryPlaystates(_m)
 }
 
 // Update returns a builder for updating this User.

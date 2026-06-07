@@ -11,8 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/accesstoken"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
 	"github.com/gartnera/gofin/ent/user"
+	"github.com/google/uuid"
 )
 
 // UserUpdate is the builder for updating User entities.
@@ -85,6 +87,21 @@ func (_u *UserUpdate) AddTokens(v ...*AccessToken) *UserUpdate {
 	return _u.AddTokenIDs(ids...)
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_u *UserUpdate) AddPlaystateIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddPlaystateIDs(ids...)
+	return _u
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_u *UserUpdate) AddPlaystates(v ...*PlayState) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlaystateIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -109,6 +126,27 @@ func (_u *UserUpdate) RemoveTokens(v ...*AccessToken) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTokenIDs(ids...)
+}
+
+// ClearPlaystates clears all "playstates" edges to the PlayState entity.
+func (_u *UserUpdate) ClearPlaystates() *UserUpdate {
+	_u.mutation.ClearPlaystates()
+	return _u
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to PlayState entities by IDs.
+func (_u *UserUpdate) RemovePlaystateIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemovePlaystateIDs(ids...)
+	return _u
+}
+
+// RemovePlaystates removes "playstates" edges to PlayState entities.
+func (_u *UserUpdate) RemovePlaystates(v ...*PlayState) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlaystateIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -214,6 +252,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlaystatesIDs(); len(nodes) > 0 && !_u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -291,6 +374,21 @@ func (_u *UserUpdateOne) AddTokens(v ...*AccessToken) *UserUpdateOne {
 	return _u.AddTokenIDs(ids...)
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_u *UserUpdateOne) AddPlaystateIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddPlaystateIDs(ids...)
+	return _u
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_u *UserUpdateOne) AddPlaystates(v ...*PlayState) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlaystateIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -315,6 +413,27 @@ func (_u *UserUpdateOne) RemoveTokens(v ...*AccessToken) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTokenIDs(ids...)
+}
+
+// ClearPlaystates clears all "playstates" edges to the PlayState entity.
+func (_u *UserUpdateOne) ClearPlaystates() *UserUpdateOne {
+	_u.mutation.ClearPlaystates()
+	return _u
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to PlayState entities by IDs.
+func (_u *UserUpdateOne) RemovePlaystateIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemovePlaystateIDs(ids...)
+	return _u
+}
+
+// RemovePlaystates removes "playstates" edges to PlayState entities.
+func (_u *UserUpdateOne) RemovePlaystates(v ...*PlayState) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlaystateIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -443,6 +562,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(accesstoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlaystatesIDs(); len(nodes) > 0 && !_u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

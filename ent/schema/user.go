@@ -36,5 +36,6 @@ func (User) Fields() []ent.Field {
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("tokens", AccessToken.Type),
+		edge.To("playstates", PlayState.Type),
 	}
 }

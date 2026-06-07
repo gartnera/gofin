@@ -53,6 +53,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /System/Ping", s.handlePing)
 	s.mux.HandleFunc("POST /Users/AuthenticateByName", s.handleAuthenticateByName)
 	s.mux.HandleFunc("GET /Branding/Configuration", s.handleBrandingConfiguration)
+	s.mux.HandleFunc("GET /Users/Public", s.handlePublicUsers)
+	s.mux.HandleFunc("GET /QuickConnect/Enabled", s.handleQuickConnectEnabled)
 
 	// System / user info.
 	s.mux.HandleFunc("GET /System/Info", s.requireAuth(s.handleSystemInfo))
@@ -69,6 +71,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /Users/{userId}/Items", s.requireAuth(s.handleItems))
 	s.mux.HandleFunc("GET /Items/{itemId}", s.requireAuth(s.handleItemByID))
 	s.mux.HandleFunc("GET /Users/{userId}/Items/{itemId}", s.requireAuth(s.handleItemByID))
+	s.mux.HandleFunc("GET /UserItems/Resume", s.requireAuth(s.handleResumeItems))
+	s.mux.HandleFunc("GET /Users/{userId}/Items/Resume", s.requireAuth(s.handleResumeItems))
 
 	// Playback.
 	s.mux.HandleFunc("POST /Items/{itemId}/PlaybackInfo", s.requireAuth(s.handlePlaybackInfo))
@@ -84,10 +88,22 @@ func (s *Server) routes() {
 	// Images (unauthenticated, as Jellyfin serves them).
 	s.mux.HandleFunc("GET /Items/{itemId}/Images/{imageType}", s.handleImage)
 
-	// Playback reporting (no-op).
-	s.mux.HandleFunc("POST /Sessions/Playing", s.requireAuth(s.handleNoContent))
-	s.mux.HandleFunc("POST /Sessions/Playing/Progress", s.requireAuth(s.handleNoContent))
-	s.mux.HandleFunc("POST /Sessions/Playing/Stopped", s.requireAuth(s.handleNoContent))
+	// Playback reporting + play state.
+	s.mux.HandleFunc("POST /Sessions/Playing", s.requireAuth(s.handlePlaybackStart))
+	s.mux.HandleFunc("POST /Sessions/Playing/Progress", s.requireAuth(s.handlePlaybackProgress))
+	s.mux.HandleFunc("POST /Sessions/Playing/Stopped", s.requireAuth(s.handlePlaybackStopped))
+	s.mux.HandleFunc("POST /Sessions/Playing/Ping", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /PlayingItems/{itemId}", s.requireAuth(s.handlePlaybackStart))
+	s.mux.HandleFunc("POST /PlayingItems/{itemId}/Progress", s.requireAuth(s.handlePlaybackProgress))
+	s.mux.HandleFunc("DELETE /PlayingItems/{itemId}", s.requireAuth(s.handlePlaybackStopped))
+	s.mux.HandleFunc("POST /UserPlayedItems/{itemId}", s.requireAuth(s.handleMarkPlayed))
+	s.mux.HandleFunc("DELETE /UserPlayedItems/{itemId}", s.requireAuth(s.handleMarkUnplayed))
+
+	// Session / client niceties.
+	s.mux.HandleFunc("POST /Sessions/Capabilities", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /Sessions/Capabilities/Full", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /Sessions/Logout", s.requireAuth(s.handleLogout))
+	s.mux.HandleFunc("GET /DisplayPreferences/{displayPreferencesId}", s.requireAuth(s.handleDisplayPreferences))
 }
 
 // writeJSON serialises v as JSON, relying on the jellyfin-go models'

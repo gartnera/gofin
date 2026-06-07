@@ -11,6 +11,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -173,6 +175,12 @@ func (_c *MediaItemCreate) SetNillableImagePath(v *string) *MediaItemCreate {
 	return _c
 }
 
+// SetMediaStreams sets the "media_streams" field.
+func (_c *MediaItemCreate) SetMediaStreams(v []probe.Stream) *MediaItemCreate {
+	_c.mutation.SetMediaStreams(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *MediaItemCreate) SetID(v uuid.UUID) *MediaItemCreate {
 	_c.mutation.SetID(v)
@@ -238,6 +246,21 @@ func (_c *MediaItemCreate) AddChildren(v ...*MediaItem) *MediaItemCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddChildIDs(ids...)
+}
+
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_c *MediaItemCreate) AddPlaystateIDs(ids ...uuid.UUID) *MediaItemCreate {
+	_c.mutation.AddPlaystateIDs(ids...)
+	return _c
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_c *MediaItemCreate) AddPlaystates(v ...*PlayState) *MediaItemCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPlaystateIDs(ids...)
 }
 
 // Mutation returns the MediaItemMutation object of the builder.
@@ -431,6 +454,10 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 		_spec.SetField(mediaitem.FieldImagePath, field.TypeString, value)
 		_node.ImagePath = value
 	}
+	if value, ok := _c.mutation.MediaStreams(); ok {
+		_spec.SetField(mediaitem.FieldMediaStreams, field.TypeJSON, value)
+		_node.MediaStreams = value
+	}
 	if nodes := _c.mutation.LibraryIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -474,6 +501,22 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mediaitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

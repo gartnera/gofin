@@ -774,6 +774,16 @@ func ImagePathContainsFold(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldContainsFold(FieldImagePath, v))
 }
 
+// MediaStreamsIsNil applies the IsNil predicate on the "media_streams" field.
+func MediaStreamsIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldMediaStreams))
+}
+
+// MediaStreamsNotNil applies the NotNil predicate on the "media_streams" field.
+func MediaStreamsNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldMediaStreams))
+}
+
 // HasLibrary applies the HasEdge predicate on the "library" edge.
 func HasLibrary() predicate.MediaItem {
 	return predicate.MediaItem(func(s *sql.Selector) {
@@ -835,6 +845,29 @@ func HasChildren() predicate.MediaItem {
 func HasChildrenWith(preds ...predicate.MediaItem) predicate.MediaItem {
 	return predicate.MediaItem(func(s *sql.Selector) {
 		step := newChildrenStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPlaystates applies the HasEdge predicate on the "playstates" edge.
+func HasPlaystates() predicate.MediaItem {
+	return predicate.MediaItem(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PlaystatesTable, PlaystatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPlaystatesWith applies the HasEdge predicate on the "playstates" edge with a given conditions (other predicates).
+func HasPlaystatesWith(preds ...predicate.PlayState) predicate.MediaItem {
+	return predicate.MediaItem(func(s *sql.Selector) {
+		step := newPlaystatesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -2,9 +2,11 @@ package jellyfin
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 	"github.com/sj14/jellyfin-go/api"
 )
@@ -36,7 +38,7 @@ func TestMapItemMovie(t *testing.T) {
 		ProductionYear: &year,
 	}
 
-	dto := MapItem(it, "server1")
+	dto := MapItem(it, "server1", nil)
 
 	if dto.GetId() != FormatID(it.ID) {
 		t.Errorf("Id = %q, want %q", dto.GetId(), FormatID(it.ID))
@@ -62,6 +64,56 @@ func TestMapItemMovie(t *testing.T) {
 	}
 }
 
+func TestMapItemWithStreamsAndUserData(t *testing.T) {
+	now := time.Now()
+	it := &ent.MediaItem{
+		ID:           uuid.New(),
+		Kind:         mediaitem.KindEpisode,
+		Name:         "Pilot",
+		Path:         "/media/ep.mp4",
+		Container:    "mp4",
+		RunTimeTicks: 1000,
+		MediaStreams: []probe.Stream{
+			{Index: 0, Type: "Video", Codec: "h264", Width: 1280, Height: 720},
+			{Index: 1, Type: "Audio", Codec: "aac", Channels: 2},
+		},
+	}
+	ps := &ent.PlayState{
+		Played:                false,
+		PlaybackPositionTicks: 500,
+		PlayCount:             2,
+		LastPlayedDate:        &now,
+	}
+
+	dto := MapItem(it, "srv", ps)
+
+	src := dto.GetMediaSources()
+	if len(src) != 1 || len(src[0].MediaStreams) != 2 {
+		t.Fatalf("expected 2 media streams, got %+v", src)
+	}
+	if src[0].MediaStreams[0].GetCodec() != "h264" {
+		t.Errorf("video codec = %q, want h264", src[0].MediaStreams[0].GetCodec())
+	}
+	ud := dto.GetUserData()
+	if ud.GetPlaybackPositionTicks() != 500 || ud.GetPlayCount() != 2 {
+		t.Errorf("unexpected UserData: %+v", ud)
+	}
+	if ud.GetPlayedPercentage() != 50 {
+		t.Errorf("PlayedPercentage = %v, want 50", ud.GetPlayedPercentage())
+	}
+}
+
+func TestUserDataForNil(t *testing.T) {
+	id := uuid.New()
+	ud := UserDataFor(id, 1000, nil)
+	if ud.GetPlayed() || ud.GetPlaybackPositionTicks() != 0 || ud.GetPlayCount() != 0 {
+		t.Errorf("nil play state should yield zero-value UserData, got %+v", ud)
+	}
+	if ud.GetItemId() != FormatID(id) {
+		t.Errorf("ItemId = %q, want %q", ud.GetItemId(), FormatID(id))
+	}
+}
+
 func TestMapItemFolderWithParent(t *testing.T) {
 	parent := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindSeries, Name: "Show"}
 	it := &ent.MediaItem{
@@ -71,7 +123,7 @@ func TestMapItemFolderWithParent(t *testing.T) {
 	}
 	it.Edges.Parent = parent
 
-	dto := MapItem(it, "server1")
+	dto := MapItem(it, "server1", nil)
 
 	if !dto.GetIsFolder() {
 		t.Error("Season should be a folder")

@@ -8,6 +8,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/schema"
 	"github.com/gartnera/gofin/ent/user"
 	"github.com/google/uuid"
@@ -95,6 +96,24 @@ func init() {
 	mediaitemDescID := mediaitemFields[0].Descriptor()
 	// mediaitem.DefaultID holds the default value on creation for the id field.
 	mediaitem.DefaultID = mediaitemDescID.Default.(func() uuid.UUID)
+	playstateFields := schema.PlayState{}.Fields()
+	_ = playstateFields
+	// playstateDescPlayed is the schema descriptor for played field.
+	playstateDescPlayed := playstateFields[1].Descriptor()
+	// playstate.DefaultPlayed holds the default value on creation for the played field.
+	playstate.DefaultPlayed = playstateDescPlayed.Default.(bool)
+	// playstateDescPlaybackPositionTicks is the schema descriptor for playback_position_ticks field.
+	playstateDescPlaybackPositionTicks := playstateFields[2].Descriptor()
+	// playstate.DefaultPlaybackPositionTicks holds the default value on creation for the playback_position_ticks field.
+	playstate.DefaultPlaybackPositionTicks = playstateDescPlaybackPositionTicks.Default.(int64)
+	// playstateDescPlayCount is the schema descriptor for play_count field.
+	playstateDescPlayCount := playstateFields[3].Descriptor()
+	// playstate.DefaultPlayCount holds the default value on creation for the play_count field.
+	playstate.DefaultPlayCount = playstateDescPlayCount.Default.(int)
+	// playstateDescID is the schema descriptor for id field.
+	playstateDescID := playstateFields[0].Descriptor()
+	// playstate.DefaultID holds the default value on creation for the id field.
+	playstate.DefaultID = playstateDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescName is the schema descriptor for name field.

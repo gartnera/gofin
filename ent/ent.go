@@ -15,6 +15,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/user"
 )
 
@@ -79,6 +80,7 @@ func checkColumn(t, c string) error {
 			accesstoken.Table: accesstoken.ValidColumn,
 			library.Table:     library.ValidColumn,
 			mediaitem.Table:   mediaitem.ValidColumn,
+			playstate.Table:   playstate.ValidColumn,
 			user.Table:        user.ValidColumn,
 		})
 	})

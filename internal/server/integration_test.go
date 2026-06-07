@@ -13,10 +13,28 @@ import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/db"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/gartnera/gofin/internal/scanner"
 	"github.com/gartnera/gofin/internal/server"
 	jfapi "github.com/sj14/jellyfin-go/api"
 )
+
+// fakeRuntimeTicks is the duration the fake prober reports for every file, so
+// resume/played thresholds are deterministic in tests.
+const fakeRuntimeTicks int64 = 1_000_000
+
+// fakeProber returns fixed duration and streams for every file.
+type fakeProber struct{}
+
+func (fakeProber) Probe(context.Context, string) (probe.Result, error) {
+	return probe.Result{
+		RunTimeTicks: fakeRuntimeTicks,
+		Streams: []probe.Stream{
+			{Index: 0, Type: "Video", Codec: "h264", Width: 1920, Height: 1080},
+			{Index: 1, Type: "Audio", Codec: "aac", Channels: 2},
+		},
+	}, nil
+}
 
 const (
 	testUser     = "demo"
@@ -64,7 +82,7 @@ func setupEnv(t *testing.T) *testEnv {
 
 	seedUser(t, ctx, client)
 
-	sc := scanner.New(client)
+	sc := scanner.New(client, scanner.WithProber(fakeProber{}))
 	for _, l := range []struct{ name, typ, sub string }{
 		{"Movies", "movies", "movies"},
 		{"TV Shows", "tvshows", "tv"},
@@ -293,6 +311,109 @@ func streamRequest(t *testing.T, env *testEnv, itemID, rangeHeader string) *http
 		t.Fatal(err)
 	}
 	return resp
+}
+
+// firstMovie returns the id of an indexed movie.
+func firstMovie(t *testing.T, client *jfapi.APIClient) string {
+	t.Helper()
+	res, _, err := client.ItemsAPI.GetItems(context.Background()).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_MOVIE}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatal("no movies indexed")
+	}
+	return res.Items[0].GetId()
+}
+
+func TestMediaStreamsInPlaybackInfo(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	movieID := firstMovie(t, client)
+
+	pb, _, err := client.MediaInfoAPI.GetPostedPlaybackInfo(context.Background(), movieID).Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pb.MediaSources) != 1 {
+		t.Fatalf("media sources = %d, want 1", len(pb.MediaSources))
+	}
+	src := pb.MediaSources[0]
+	if src.GetRunTimeTicks() != fakeRuntimeTicks {
+		t.Errorf("RunTimeTicks = %d, want %d", src.GetRunTimeTicks(), fakeRuntimeTicks)
+	}
+	if len(src.MediaStreams) != 2 {
+		t.Fatalf("media streams = %d, want 2", len(src.MediaStreams))
+	}
+	if src.MediaStreams[0].GetCodec() != "h264" {
+		t.Errorf("video codec = %q, want h264", src.MediaStreams[0].GetCodec())
+	}
+}
+
+func TestProgressResumeAndPlayed(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+	movieID := firstMovie(t, client)
+
+	// Report progress at 40% -> appears in Resume with the saved position.
+	prog := jfapi.NewPlaybackProgressInfo()
+	prog.SetItemId(movieID)
+	prog.SetPositionTicks(400_000)
+	if _, err := client.PlaystateAPI.ReportPlaybackProgress(ctx).PlaybackProgressInfo(*prog).Execute(); err != nil {
+		t.Fatalf("ReportPlaybackProgress: %v", err)
+	}
+
+	resume, _, err := client.ItemsAPI.GetResumeItems(ctx).Execute()
+	if err != nil {
+		t.Fatalf("GetResumeItems: %v", err)
+	}
+	if len(resume.Items) != 1 {
+		t.Fatalf("resume items = %d, want 1", len(resume.Items))
+	}
+	if ud := resume.Items[0].GetUserData(); ud.GetPlaybackPositionTicks() != 400_000 || ud.GetPlayed() {
+		t.Errorf("unexpected resume UserData: %+v", ud)
+	}
+
+	// Report stopped near the end (95% >= 90% threshold) -> marked played,
+	// resume position cleared.
+	stop := jfapi.NewPlaybackStopInfo()
+	stop.SetItemId(movieID)
+	stop.SetPositionTicks(950_000)
+	if _, err := client.PlaystateAPI.ReportPlaybackStopped(ctx).PlaybackStopInfo(*stop).Execute(); err != nil {
+		t.Fatalf("ReportPlaybackStopped: %v", err)
+	}
+
+	resume2, _, err := client.ItemsAPI.GetResumeItems(ctx).Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resume2.Items) != 0 {
+		t.Errorf("resume items after finishing = %d, want 0", len(resume2.Items))
+	}
+
+	items, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_MOVIE}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, it := range items.Items {
+		if it.GetId() == movieID {
+			found = true
+			if ud := it.GetUserData(); !ud.GetPlayed() || ud.GetPlaybackPositionTicks() != 0 {
+				t.Errorf("expected played with reset position, got %+v", ud)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("movie not found in item list")
+	}
 }
 
 func TestStreamRequiresAuth(t *testing.T) {

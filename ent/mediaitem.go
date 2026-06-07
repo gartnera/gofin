@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -42,6 +44,8 @@ type MediaItem struct {
 	AlbumArtist string `json:"album_artist,omitempty"`
 	// ImagePath holds the value of the "image_path" field.
 	ImagePath string `json:"image_path,omitempty"`
+	// MediaStreams holds the value of the "media_streams" field.
+	MediaStreams []probe.Stream `json:"media_streams,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MediaItemQuery when eager-loading is set.
 	Edges               MediaItemEdges `json:"edges"`
@@ -58,9 +62,11 @@ type MediaItemEdges struct {
 	Parent *MediaItem `json:"parent,omitempty"`
 	// Children holds the value of the children edge.
 	Children []*MediaItem `json:"children,omitempty"`
+	// Playstates holds the value of the playstates edge.
+	Playstates []*PlayState `json:"playstates,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // LibraryOrErr returns the Library value or an error if the edge
@@ -94,11 +100,22 @@ func (e MediaItemEdges) ChildrenOrErr() ([]*MediaItem, error) {
 	return nil, &NotLoadedError{edge: "children"}
 }
 
+// PlaystatesOrErr returns the Playstates value or an error if the edge
+// was not loaded in eager-loading.
+func (e MediaItemEdges) PlaystatesOrErr() ([]*PlayState, error) {
+	if e.loadedTypes[3] {
+		return e.Playstates, nil
+	}
+	return nil, &NotLoadedError{edge: "playstates"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*MediaItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case mediaitem.FieldMediaStreams:
+			values[i] = new([]byte)
 		case mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldParentIndexNumber:
 			values[i] = new(sql.NullInt64)
 		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
@@ -205,6 +222,14 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ImagePath = value.String
 			}
+		case mediaitem.FieldMediaStreams:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field media_streams", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.MediaStreams); err != nil {
+					return fmt.Errorf("unmarshal field media_streams: %w", err)
+				}
+			}
 		case mediaitem.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field library_items", values[i])
@@ -245,6 +270,11 @@ func (_m *MediaItem) QueryParent() *MediaItemQuery {
 // QueryChildren queries the "children" edge of the MediaItem entity.
 func (_m *MediaItem) QueryChildren() *MediaItemQuery {
 	return NewMediaItemClient(_m.config).QueryChildren(_m)
+}
+
+// QueryPlaystates queries the "playstates" edge of the MediaItem entity.
+func (_m *MediaItem) QueryPlaystates() *PlayStateQuery {
+	return NewMediaItemClient(_m.config).QueryPlaystates(_m)
 }
 
 // Update returns a builder for updating this MediaItem.
@@ -311,6 +341,9 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("image_path=")
 	builder.WriteString(_m.ImagePath)
+	builder.WriteString(", ")
+	builder.WriteString("media_streams=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MediaStreams))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -279,6 +279,29 @@ func HasTokensWith(preds ...predicate.AccessToken) predicate.User {
 	})
 }
 
+// HasPlaystates applies the HasEdge predicate on the "playstates" edge.
+func HasPlaystates() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PlaystatesTable, PlaystatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPlaystatesWith applies the HasEdge predicate on the "playstates" edge with a given conditions (other predicates).
+func HasPlaystatesWith(preds ...predicate.PlayState) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newPlaystatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

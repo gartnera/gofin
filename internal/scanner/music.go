@@ -72,6 +72,8 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string)
 		}
 	}
 
+	probed := s.probeFile(ctx, path)
+
 	existing, err := s.existingByPath(ctx, path)
 	if err != nil {
 		return err
@@ -80,6 +82,8 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string)
 		upd := existing.Update().
 			SetName(meta.Title).
 			SetContainer(containerOf(path)).
+			SetRunTimeTicks(probed.RunTimeTicks).
+			SetMediaStreams(probed.Streams).
 			SetAlbumArtist(meta.Artist).
 			SetParentID(album.ID)
 		if meta.Track != nil {
@@ -94,6 +98,8 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string)
 		SetSortName(sortKey(meta.Title)).
 		SetPath(path).
 		SetContainer(containerOf(path)).
+		SetRunTimeTicks(probed.RunTimeTicks).
+		SetMediaStreams(probed.Streams).
 		SetAlbumArtist(meta.Artist).
 		SetLibrary(lib).
 		SetParentID(album.ID)

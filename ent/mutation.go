@@ -14,8 +14,10 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
 	"github.com/gartnera/gofin/ent/user"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -31,6 +33,7 @@ const (
 	TypeAccessToken = "AccessToken"
 	TypeLibrary     = "Library"
 	TypeMediaItem   = "MediaItem"
+	TypePlayState   = "PlayState"
 	TypeUser        = "User"
 )
 
@@ -1252,6 +1255,8 @@ type MediaItemMutation struct {
 	overview               *string
 	album_artist           *string
 	image_path             *string
+	media_streams          *[]probe.Stream
+	appendmedia_streams    []probe.Stream
 	clearedFields          map[string]struct{}
 	library                *uuid.UUID
 	clearedlibrary         bool
@@ -1260,6 +1265,9 @@ type MediaItemMutation struct {
 	children               map[uuid.UUID]struct{}
 	removedchildren        map[uuid.UUID]struct{}
 	clearedchildren        bool
+	playstates             map[uuid.UUID]struct{}
+	removedplaystates      map[uuid.UUID]struct{}
+	clearedplaystates      bool
 	done                   bool
 	oldValue               func(context.Context) (*MediaItem, error)
 	predicates             []predicate.MediaItem
@@ -1923,6 +1931,71 @@ func (m *MediaItemMutation) ResetImagePath() {
 	m.image_path = nil
 }
 
+// SetMediaStreams sets the "media_streams" field.
+func (m *MediaItemMutation) SetMediaStreams(pr []probe.Stream) {
+	m.media_streams = &pr
+	m.appendmedia_streams = nil
+}
+
+// MediaStreams returns the value of the "media_streams" field in the mutation.
+func (m *MediaItemMutation) MediaStreams() (r []probe.Stream, exists bool) {
+	v := m.media_streams
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMediaStreams returns the old "media_streams" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldMediaStreams(ctx context.Context) (v []probe.Stream, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMediaStreams is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMediaStreams requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMediaStreams: %w", err)
+	}
+	return oldValue.MediaStreams, nil
+}
+
+// AppendMediaStreams adds pr to the "media_streams" field.
+func (m *MediaItemMutation) AppendMediaStreams(pr []probe.Stream) {
+	m.appendmedia_streams = append(m.appendmedia_streams, pr...)
+}
+
+// AppendedMediaStreams returns the list of values that were appended to the "media_streams" field in this mutation.
+func (m *MediaItemMutation) AppendedMediaStreams() ([]probe.Stream, bool) {
+	if len(m.appendmedia_streams) == 0 {
+		return nil, false
+	}
+	return m.appendmedia_streams, true
+}
+
+// ClearMediaStreams clears the value of the "media_streams" field.
+func (m *MediaItemMutation) ClearMediaStreams() {
+	m.media_streams = nil
+	m.appendmedia_streams = nil
+	m.clearedFields[mediaitem.FieldMediaStreams] = struct{}{}
+}
+
+// MediaStreamsCleared returns if the "media_streams" field was cleared in this mutation.
+func (m *MediaItemMutation) MediaStreamsCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldMediaStreams]
+	return ok
+}
+
+// ResetMediaStreams resets all changes to the "media_streams" field.
+func (m *MediaItemMutation) ResetMediaStreams() {
+	m.media_streams = nil
+	m.appendmedia_streams = nil
+	delete(m.clearedFields, mediaitem.FieldMediaStreams)
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by id.
 func (m *MediaItemMutation) SetLibraryID(id uuid.UUID) {
 	m.library = &id
@@ -2055,6 +2128,60 @@ func (m *MediaItemMutation) ResetChildren() {
 	m.removedchildren = nil
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by ids.
+func (m *MediaItemMutation) AddPlaystateIDs(ids ...uuid.UUID) {
+	if m.playstates == nil {
+		m.playstates = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.playstates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPlaystates clears the "playstates" edge to the PlayState entity.
+func (m *MediaItemMutation) ClearPlaystates() {
+	m.clearedplaystates = true
+}
+
+// PlaystatesCleared reports if the "playstates" edge to the PlayState entity was cleared.
+func (m *MediaItemMutation) PlaystatesCleared() bool {
+	return m.clearedplaystates
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to the PlayState entity by IDs.
+func (m *MediaItemMutation) RemovePlaystateIDs(ids ...uuid.UUID) {
+	if m.removedplaystates == nil {
+		m.removedplaystates = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.playstates, ids[i])
+		m.removedplaystates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPlaystates returns the removed IDs of the "playstates" edge to the PlayState entity.
+func (m *MediaItemMutation) RemovedPlaystatesIDs() (ids []uuid.UUID) {
+	for id := range m.removedplaystates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PlaystatesIDs returns the "playstates" edge IDs in the mutation.
+func (m *MediaItemMutation) PlaystatesIDs() (ids []uuid.UUID) {
+	for id := range m.playstates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPlaystates resets all changes to the "playstates" edge.
+func (m *MediaItemMutation) ResetPlaystates() {
+	m.playstates = nil
+	m.clearedplaystates = false
+	m.removedplaystates = nil
+}
+
 // Where appends a list predicates to the MediaItemMutation builder.
 func (m *MediaItemMutation) Where(ps ...predicate.MediaItem) {
 	m.predicates = append(m.predicates, ps...)
@@ -2089,7 +2216,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2126,6 +2253,9 @@ func (m *MediaItemMutation) Fields() []string {
 	if m.image_path != nil {
 		fields = append(fields, mediaitem.FieldImagePath)
 	}
+	if m.media_streams != nil {
+		fields = append(fields, mediaitem.FieldMediaStreams)
+	}
 	return fields
 }
 
@@ -2158,6 +2288,8 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.AlbumArtist()
 	case mediaitem.FieldImagePath:
 		return m.ImagePath()
+	case mediaitem.FieldMediaStreams:
+		return m.MediaStreams()
 	}
 	return nil, false
 }
@@ -2191,6 +2323,8 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldAlbumArtist(ctx)
 	case mediaitem.FieldImagePath:
 		return m.OldImagePath(ctx)
+	case mediaitem.FieldMediaStreams:
+		return m.OldMediaStreams(ctx)
 	}
 	return nil, fmt.Errorf("unknown MediaItem field %s", name)
 }
@@ -2284,6 +2418,13 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetImagePath(v)
 		return nil
+	case mediaitem.FieldMediaStreams:
+		v, ok := value.([]probe.Stream)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMediaStreams(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)
 }
@@ -2374,6 +2515,9 @@ func (m *MediaItemMutation) ClearedFields() []string {
 	if m.FieldCleared(mediaitem.FieldParentIndexNumber) {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
 	}
+	if m.FieldCleared(mediaitem.FieldMediaStreams) {
+		fields = append(fields, mediaitem.FieldMediaStreams)
+	}
 	return fields
 }
 
@@ -2396,6 +2540,9 @@ func (m *MediaItemMutation) ClearField(name string) error {
 		return nil
 	case mediaitem.FieldParentIndexNumber:
 		m.ClearParentIndexNumber()
+		return nil
+	case mediaitem.FieldMediaStreams:
+		m.ClearMediaStreams()
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem nullable field %s", name)
@@ -2441,13 +2588,16 @@ func (m *MediaItemMutation) ResetField(name string) error {
 	case mediaitem.FieldImagePath:
 		m.ResetImagePath()
 		return nil
+	case mediaitem.FieldMediaStreams:
+		m.ResetMediaStreams()
+		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *MediaItemMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.library != nil {
 		edges = append(edges, mediaitem.EdgeLibrary)
 	}
@@ -2456,6 +2606,9 @@ func (m *MediaItemMutation) AddedEdges() []string {
 	}
 	if m.children != nil {
 		edges = append(edges, mediaitem.EdgeChildren)
+	}
+	if m.playstates != nil {
+		edges = append(edges, mediaitem.EdgePlaystates)
 	}
 	return edges
 }
@@ -2478,15 +2631,24 @@ func (m *MediaItemMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case mediaitem.EdgePlaystates:
+		ids := make([]ent.Value, 0, len(m.playstates))
+		for id := range m.playstates {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *MediaItemMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedchildren != nil {
 		edges = append(edges, mediaitem.EdgeChildren)
+	}
+	if m.removedplaystates != nil {
+		edges = append(edges, mediaitem.EdgePlaystates)
 	}
 	return edges
 }
@@ -2501,13 +2663,19 @@ func (m *MediaItemMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case mediaitem.EdgePlaystates:
+		ids := make([]ent.Value, 0, len(m.removedplaystates))
+		for id := range m.removedplaystates {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *MediaItemMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedlibrary {
 		edges = append(edges, mediaitem.EdgeLibrary)
 	}
@@ -2516,6 +2684,9 @@ func (m *MediaItemMutation) ClearedEdges() []string {
 	}
 	if m.clearedchildren {
 		edges = append(edges, mediaitem.EdgeChildren)
+	}
+	if m.clearedplaystates {
+		edges = append(edges, mediaitem.EdgePlaystates)
 	}
 	return edges
 }
@@ -2530,6 +2701,8 @@ func (m *MediaItemMutation) EdgeCleared(name string) bool {
 		return m.clearedparent
 	case mediaitem.EdgeChildren:
 		return m.clearedchildren
+	case mediaitem.EdgePlaystates:
+		return m.clearedplaystates
 	}
 	return false
 }
@@ -2561,27 +2734,744 @@ func (m *MediaItemMutation) ResetEdge(name string) error {
 	case mediaitem.EdgeChildren:
 		m.ResetChildren()
 		return nil
+	case mediaitem.EdgePlaystates:
+		m.ResetPlaystates()
+		return nil
 	}
 	return fmt.Errorf("unknown MediaItem edge %s", name)
+}
+
+// PlayStateMutation represents an operation that mutates the PlayState nodes in the graph.
+type PlayStateMutation struct {
+	config
+	op                         Op
+	typ                        string
+	id                         *uuid.UUID
+	played                     *bool
+	playback_position_ticks    *int64
+	addplayback_position_ticks *int64
+	play_count                 *int
+	addplay_count              *int
+	last_played_date           *time.Time
+	clearedFields              map[string]struct{}
+	user                       *uuid.UUID
+	cleareduser                bool
+	item                       *uuid.UUID
+	cleareditem                bool
+	done                       bool
+	oldValue                   func(context.Context) (*PlayState, error)
+	predicates                 []predicate.PlayState
+}
+
+var _ ent.Mutation = (*PlayStateMutation)(nil)
+
+// playstateOption allows management of the mutation configuration using functional options.
+type playstateOption func(*PlayStateMutation)
+
+// newPlayStateMutation creates new mutation for the PlayState entity.
+func newPlayStateMutation(c config, op Op, opts ...playstateOption) *PlayStateMutation {
+	m := &PlayStateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePlayState,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPlayStateID sets the ID field of the mutation.
+func withPlayStateID(id uuid.UUID) playstateOption {
+	return func(m *PlayStateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PlayState
+		)
+		m.oldValue = func(ctx context.Context) (*PlayState, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PlayState.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPlayState sets the old PlayState of the mutation.
+func withPlayState(node *PlayState) playstateOption {
+	return func(m *PlayStateMutation) {
+		m.oldValue = func(context.Context) (*PlayState, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PlayStateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PlayStateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of PlayState entities.
+func (m *PlayStateMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PlayStateMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PlayStateMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PlayState.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPlayed sets the "played" field.
+func (m *PlayStateMutation) SetPlayed(b bool) {
+	m.played = &b
+}
+
+// Played returns the value of the "played" field in the mutation.
+func (m *PlayStateMutation) Played() (r bool, exists bool) {
+	v := m.played
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlayed returns the old "played" field's value of the PlayState entity.
+// If the PlayState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayStateMutation) OldPlayed(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlayed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlayed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlayed: %w", err)
+	}
+	return oldValue.Played, nil
+}
+
+// ResetPlayed resets all changes to the "played" field.
+func (m *PlayStateMutation) ResetPlayed() {
+	m.played = nil
+}
+
+// SetPlaybackPositionTicks sets the "playback_position_ticks" field.
+func (m *PlayStateMutation) SetPlaybackPositionTicks(i int64) {
+	m.playback_position_ticks = &i
+	m.addplayback_position_ticks = nil
+}
+
+// PlaybackPositionTicks returns the value of the "playback_position_ticks" field in the mutation.
+func (m *PlayStateMutation) PlaybackPositionTicks() (r int64, exists bool) {
+	v := m.playback_position_ticks
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlaybackPositionTicks returns the old "playback_position_ticks" field's value of the PlayState entity.
+// If the PlayState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayStateMutation) OldPlaybackPositionTicks(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlaybackPositionTicks is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlaybackPositionTicks requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlaybackPositionTicks: %w", err)
+	}
+	return oldValue.PlaybackPositionTicks, nil
+}
+
+// AddPlaybackPositionTicks adds i to the "playback_position_ticks" field.
+func (m *PlayStateMutation) AddPlaybackPositionTicks(i int64) {
+	if m.addplayback_position_ticks != nil {
+		*m.addplayback_position_ticks += i
+	} else {
+		m.addplayback_position_ticks = &i
+	}
+}
+
+// AddedPlaybackPositionTicks returns the value that was added to the "playback_position_ticks" field in this mutation.
+func (m *PlayStateMutation) AddedPlaybackPositionTicks() (r int64, exists bool) {
+	v := m.addplayback_position_ticks
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPlaybackPositionTicks resets all changes to the "playback_position_ticks" field.
+func (m *PlayStateMutation) ResetPlaybackPositionTicks() {
+	m.playback_position_ticks = nil
+	m.addplayback_position_ticks = nil
+}
+
+// SetPlayCount sets the "play_count" field.
+func (m *PlayStateMutation) SetPlayCount(i int) {
+	m.play_count = &i
+	m.addplay_count = nil
+}
+
+// PlayCount returns the value of the "play_count" field in the mutation.
+func (m *PlayStateMutation) PlayCount() (r int, exists bool) {
+	v := m.play_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlayCount returns the old "play_count" field's value of the PlayState entity.
+// If the PlayState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayStateMutation) OldPlayCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlayCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlayCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlayCount: %w", err)
+	}
+	return oldValue.PlayCount, nil
+}
+
+// AddPlayCount adds i to the "play_count" field.
+func (m *PlayStateMutation) AddPlayCount(i int) {
+	if m.addplay_count != nil {
+		*m.addplay_count += i
+	} else {
+		m.addplay_count = &i
+	}
+}
+
+// AddedPlayCount returns the value that was added to the "play_count" field in this mutation.
+func (m *PlayStateMutation) AddedPlayCount() (r int, exists bool) {
+	v := m.addplay_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPlayCount resets all changes to the "play_count" field.
+func (m *PlayStateMutation) ResetPlayCount() {
+	m.play_count = nil
+	m.addplay_count = nil
+}
+
+// SetLastPlayedDate sets the "last_played_date" field.
+func (m *PlayStateMutation) SetLastPlayedDate(t time.Time) {
+	m.last_played_date = &t
+}
+
+// LastPlayedDate returns the value of the "last_played_date" field in the mutation.
+func (m *PlayStateMutation) LastPlayedDate() (r time.Time, exists bool) {
+	v := m.last_played_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastPlayedDate returns the old "last_played_date" field's value of the PlayState entity.
+// If the PlayState object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayStateMutation) OldLastPlayedDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastPlayedDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastPlayedDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastPlayedDate: %w", err)
+	}
+	return oldValue.LastPlayedDate, nil
+}
+
+// ClearLastPlayedDate clears the value of the "last_played_date" field.
+func (m *PlayStateMutation) ClearLastPlayedDate() {
+	m.last_played_date = nil
+	m.clearedFields[playstate.FieldLastPlayedDate] = struct{}{}
+}
+
+// LastPlayedDateCleared returns if the "last_played_date" field was cleared in this mutation.
+func (m *PlayStateMutation) LastPlayedDateCleared() bool {
+	_, ok := m.clearedFields[playstate.FieldLastPlayedDate]
+	return ok
+}
+
+// ResetLastPlayedDate resets all changes to the "last_played_date" field.
+func (m *PlayStateMutation) ResetLastPlayedDate() {
+	m.last_played_date = nil
+	delete(m.clearedFields, playstate.FieldLastPlayedDate)
+}
+
+// SetUserID sets the "user" edge to the User entity by id.
+func (m *PlayStateMutation) SetUserID(id uuid.UUID) {
+	m.user = &id
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *PlayStateMutation) ClearUser() {
+	m.cleareduser = true
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *PlayStateMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserID returns the "user" edge ID in the mutation.
+func (m *PlayStateMutation) UserID() (id uuid.UUID, exists bool) {
+	if m.user != nil {
+		return *m.user, true
+	}
+	return
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *PlayStateMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *PlayStateMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// SetItemID sets the "item" edge to the MediaItem entity by id.
+func (m *PlayStateMutation) SetItemID(id uuid.UUID) {
+	m.item = &id
+}
+
+// ClearItem clears the "item" edge to the MediaItem entity.
+func (m *PlayStateMutation) ClearItem() {
+	m.cleareditem = true
+}
+
+// ItemCleared reports if the "item" edge to the MediaItem entity was cleared.
+func (m *PlayStateMutation) ItemCleared() bool {
+	return m.cleareditem
+}
+
+// ItemID returns the "item" edge ID in the mutation.
+func (m *PlayStateMutation) ItemID() (id uuid.UUID, exists bool) {
+	if m.item != nil {
+		return *m.item, true
+	}
+	return
+}
+
+// ItemIDs returns the "item" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ItemID instead. It exists only for internal usage by the builders.
+func (m *PlayStateMutation) ItemIDs() (ids []uuid.UUID) {
+	if id := m.item; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetItem resets all changes to the "item" edge.
+func (m *PlayStateMutation) ResetItem() {
+	m.item = nil
+	m.cleareditem = false
+}
+
+// Where appends a list predicates to the PlayStateMutation builder.
+func (m *PlayStateMutation) Where(ps ...predicate.PlayState) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PlayStateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PlayStateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PlayState, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PlayStateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PlayStateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PlayState).
+func (m *PlayStateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PlayStateMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.played != nil {
+		fields = append(fields, playstate.FieldPlayed)
+	}
+	if m.playback_position_ticks != nil {
+		fields = append(fields, playstate.FieldPlaybackPositionTicks)
+	}
+	if m.play_count != nil {
+		fields = append(fields, playstate.FieldPlayCount)
+	}
+	if m.last_played_date != nil {
+		fields = append(fields, playstate.FieldLastPlayedDate)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PlayStateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case playstate.FieldPlayed:
+		return m.Played()
+	case playstate.FieldPlaybackPositionTicks:
+		return m.PlaybackPositionTicks()
+	case playstate.FieldPlayCount:
+		return m.PlayCount()
+	case playstate.FieldLastPlayedDate:
+		return m.LastPlayedDate()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PlayStateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case playstate.FieldPlayed:
+		return m.OldPlayed(ctx)
+	case playstate.FieldPlaybackPositionTicks:
+		return m.OldPlaybackPositionTicks(ctx)
+	case playstate.FieldPlayCount:
+		return m.OldPlayCount(ctx)
+	case playstate.FieldLastPlayedDate:
+		return m.OldLastPlayedDate(ctx)
+	}
+	return nil, fmt.Errorf("unknown PlayState field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PlayStateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case playstate.FieldPlayed:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlayed(v)
+		return nil
+	case playstate.FieldPlaybackPositionTicks:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlaybackPositionTicks(v)
+		return nil
+	case playstate.FieldPlayCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlayCount(v)
+		return nil
+	case playstate.FieldLastPlayedDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastPlayedDate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PlayStateMutation) AddedFields() []string {
+	var fields []string
+	if m.addplayback_position_ticks != nil {
+		fields = append(fields, playstate.FieldPlaybackPositionTicks)
+	}
+	if m.addplay_count != nil {
+		fields = append(fields, playstate.FieldPlayCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PlayStateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case playstate.FieldPlaybackPositionTicks:
+		return m.AddedPlaybackPositionTicks()
+	case playstate.FieldPlayCount:
+		return m.AddedPlayCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PlayStateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case playstate.FieldPlaybackPositionTicks:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlaybackPositionTicks(v)
+		return nil
+	case playstate.FieldPlayCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlayCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PlayStateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(playstate.FieldLastPlayedDate) {
+		fields = append(fields, playstate.FieldLastPlayedDate)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PlayStateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PlayStateMutation) ClearField(name string) error {
+	switch name {
+	case playstate.FieldLastPlayedDate:
+		m.ClearLastPlayedDate()
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PlayStateMutation) ResetField(name string) error {
+	switch name {
+	case playstate.FieldPlayed:
+		m.ResetPlayed()
+		return nil
+	case playstate.FieldPlaybackPositionTicks:
+		m.ResetPlaybackPositionTicks()
+		return nil
+	case playstate.FieldPlayCount:
+		m.ResetPlayCount()
+		return nil
+	case playstate.FieldLastPlayedDate:
+		m.ResetLastPlayedDate()
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PlayStateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, playstate.EdgeUser)
+	}
+	if m.item != nil {
+		edges = append(edges, playstate.EdgeItem)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PlayStateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case playstate.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case playstate.EdgeItem:
+		if id := m.item; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PlayStateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PlayStateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PlayStateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, playstate.EdgeUser)
+	}
+	if m.cleareditem {
+		edges = append(edges, playstate.EdgeItem)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PlayStateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case playstate.EdgeUser:
+		return m.cleareduser
+	case playstate.EdgeItem:
+		return m.cleareditem
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PlayStateMutation) ClearEdge(name string) error {
+	switch name {
+	case playstate.EdgeUser:
+		m.ClearUser()
+		return nil
+	case playstate.EdgeItem:
+		m.ClearItem()
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PlayStateMutation) ResetEdge(name string) error {
+	switch name {
+	case playstate.EdgeUser:
+		m.ResetUser()
+		return nil
+	case playstate.EdgeItem:
+		m.ResetItem()
+		return nil
+	}
+	return fmt.Errorf("unknown PlayState edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	name          *string
-	password_hash *string
-	is_admin      *bool
-	created_at    *time.Time
-	clearedFields map[string]struct{}
-	tokens        map[int]struct{}
-	removedtokens map[int]struct{}
-	clearedtokens bool
-	done          bool
-	oldValue      func(context.Context) (*User, error)
-	predicates    []predicate.User
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	name              *string
+	password_hash     *string
+	is_admin          *bool
+	created_at        *time.Time
+	clearedFields     map[string]struct{}
+	tokens            map[int]struct{}
+	removedtokens     map[int]struct{}
+	clearedtokens     bool
+	playstates        map[uuid.UUID]struct{}
+	removedplaystates map[uuid.UUID]struct{}
+	clearedplaystates bool
+	done              bool
+	oldValue          func(context.Context) (*User, error)
+	predicates        []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -2886,6 +3776,60 @@ func (m *UserMutation) ResetTokens() {
 	m.removedtokens = nil
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by ids.
+func (m *UserMutation) AddPlaystateIDs(ids ...uuid.UUID) {
+	if m.playstates == nil {
+		m.playstates = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.playstates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPlaystates clears the "playstates" edge to the PlayState entity.
+func (m *UserMutation) ClearPlaystates() {
+	m.clearedplaystates = true
+}
+
+// PlaystatesCleared reports if the "playstates" edge to the PlayState entity was cleared.
+func (m *UserMutation) PlaystatesCleared() bool {
+	return m.clearedplaystates
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to the PlayState entity by IDs.
+func (m *UserMutation) RemovePlaystateIDs(ids ...uuid.UUID) {
+	if m.removedplaystates == nil {
+		m.removedplaystates = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.playstates, ids[i])
+		m.removedplaystates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPlaystates returns the removed IDs of the "playstates" edge to the PlayState entity.
+func (m *UserMutation) RemovedPlaystatesIDs() (ids []uuid.UUID) {
+	for id := range m.removedplaystates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PlaystatesIDs returns the "playstates" edge IDs in the mutation.
+func (m *UserMutation) PlaystatesIDs() (ids []uuid.UUID) {
+	for id := range m.playstates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPlaystates resets all changes to the "playstates" edge.
+func (m *UserMutation) ResetPlaystates() {
+	m.playstates = nil
+	m.clearedplaystates = false
+	m.removedplaystates = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -3070,9 +4014,12 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.tokens != nil {
 		edges = append(edges, user.EdgeTokens)
+	}
+	if m.playstates != nil {
+		edges = append(edges, user.EdgePlaystates)
 	}
 	return edges
 }
@@ -3087,15 +4034,24 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgePlaystates:
+		ids := make([]ent.Value, 0, len(m.playstates))
+		for id := range m.playstates {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedtokens != nil {
 		edges = append(edges, user.EdgeTokens)
+	}
+	if m.removedplaystates != nil {
+		edges = append(edges, user.EdgePlaystates)
 	}
 	return edges
 }
@@ -3110,15 +4066,24 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgePlaystates:
+		ids := make([]ent.Value, 0, len(m.removedplaystates))
+		for id := range m.removedplaystates {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedtokens {
 		edges = append(edges, user.EdgeTokens)
+	}
+	if m.clearedplaystates {
+		edges = append(edges, user.EdgePlaystates)
 	}
 	return edges
 }
@@ -3129,6 +4094,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgeTokens:
 		return m.clearedtokens
+	case user.EdgePlaystates:
+		return m.clearedplaystates
 	}
 	return false
 }
@@ -3147,6 +4114,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
 	case user.EdgeTokens:
 		m.ResetTokens()
+		return nil
+	case user.EdgePlaystates:
+		m.ResetPlaystates()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

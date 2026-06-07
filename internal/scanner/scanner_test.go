@@ -9,7 +9,15 @@ import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
 	"github.com/gartnera/gofin/internal/db"
+	"github.com/gartnera/gofin/internal/probe"
 )
+
+// fakeProber returns fixed metadata for every file.
+type fakeProber struct{ res probe.Result }
+
+func (f fakeProber) Probe(context.Context, string) (probe.Result, error) {
+	return f.res, nil
+}
 
 func writeFile(t *testing.T, path string) {
 	t.Helper()
@@ -46,7 +54,7 @@ func TestScanLibraries(t *testing.T) {
 	}
 	defer client.Close()
 
-	sc := New(client)
+	sc := New(client, WithProber(probe.Noop{}))
 	libs := []struct{ name, typ, sub string }{
 		{"Movies", "movies", "movies"},
 		{"TV", "tvshows", "tv"},
@@ -92,5 +100,48 @@ func TestScanLibraries(t *testing.T) {
 	// Libraries are reused, not duplicated.
 	if n, _ := client.Library.Query().Count(ctx); n != 3 {
 		t.Errorf("library count = %d, want 3", n)
+	}
+}
+
+func TestScanStoresProbeMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "movies", "Inception (2010).mp4"))
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	prober := fakeProber{res: probe.Result{
+		RunTimeTicks: 72_000_000_000,
+		Streams: []probe.Stream{
+			{Index: 0, Type: "Video", Codec: "h264", Width: 1920, Height: 1080},
+			{Index: 1, Type: "Audio", Codec: "aac", Channels: 6},
+		},
+	}}
+	sc := New(client, WithProber(prober))
+
+	lib, err := sc.EnsureLibrary(ctx, "Movies", "movies", filepath.Join(root, "movies"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+
+	movie, err := client.MediaItem.Query().Where(mediaitem.KindEQ(mediaitem.KindMovie)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if movie.RunTimeTicks != 72_000_000_000 {
+		t.Errorf("RunTimeTicks = %d, want 72000000000", movie.RunTimeTicks)
+	}
+	if len(movie.MediaStreams) != 2 {
+		t.Fatalf("MediaStreams = %d, want 2", len(movie.MediaStreams))
+	}
+	if movie.MediaStreams[0].Codec != "h264" || movie.MediaStreams[0].Width != 1920 {
+		t.Errorf("unexpected video stream: %+v", movie.MediaStreams[0])
 	}
 }

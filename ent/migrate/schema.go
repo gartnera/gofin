@@ -61,6 +61,7 @@ var (
 		{Name: "overview", Type: field.TypeString, Default: ""},
 		{Name: "album_artist", Type: field.TypeString, Default: ""},
 		{Name: "image_path", Type: field.TypeString, Default: ""},
+		{Name: "media_streams", Type: field.TypeJSON, Nullable: true},
 		{Name: "library_items", Type: field.TypeUUID, Nullable: true},
 		{Name: "media_item_children", Type: field.TypeUUID, Nullable: true},
 	}
@@ -72,15 +73,45 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "media_items_libraries_items",
-				Columns:    []*schema.Column{MediaItemsColumns[13]},
+				Columns:    []*schema.Column{MediaItemsColumns[14]},
 				RefColumns: []*schema.Column{LibrariesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "media_items_media_items_children",
-				Columns:    []*schema.Column{MediaItemsColumns[14]},
+				Columns:    []*schema.Column{MediaItemsColumns[15]},
 				RefColumns: []*schema.Column{MediaItemsColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// PlayStatesColumns holds the columns for the "play_states" table.
+	PlayStatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "played", Type: field.TypeBool, Default: false},
+		{Name: "playback_position_ticks", Type: field.TypeInt64, Default: 0},
+		{Name: "play_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_played_date", Type: field.TypeTime, Nullable: true},
+		{Name: "media_item_playstates", Type: field.TypeUUID},
+		{Name: "user_playstates", Type: field.TypeUUID},
+	}
+	// PlayStatesTable holds the schema information for the "play_states" table.
+	PlayStatesTable = &schema.Table{
+		Name:       "play_states",
+		Columns:    PlayStatesColumns,
+		PrimaryKey: []*schema.Column{PlayStatesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "play_states_media_items_playstates",
+				Columns:    []*schema.Column{PlayStatesColumns[5]},
+				RefColumns: []*schema.Column{MediaItemsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "play_states_users_playstates",
+				Columns:    []*schema.Column{PlayStatesColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
 			},
 		},
 	}
@@ -103,6 +134,7 @@ var (
 		AccessTokensTable,
 		LibrariesTable,
 		MediaItemsTable,
+		PlayStatesTable,
 		UsersTable,
 	}
 )
@@ -111,4 +143,6 @@ func init() {
 	AccessTokensTable.ForeignKeys[0].RefTable = UsersTable
 	MediaItemsTable.ForeignKeys[0].RefTable = LibrariesTable
 	MediaItemsTable.ForeignKeys[1].RefTable = MediaItemsTable
+	PlayStatesTable.ForeignKeys[0].RefTable = MediaItemsTable
+	PlayStatesTable.ForeignKeys[1].RefTable = UsersTable
 }

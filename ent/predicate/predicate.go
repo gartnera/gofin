@@ -15,5 +15,8 @@ type Library func(*sql.Selector)
 // MediaItem is the predicate function for mediaitem builders.
 type MediaItem func(*sql.Selector)
 
+// PlayState is the predicate function for playstate builders.
+type PlayState func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

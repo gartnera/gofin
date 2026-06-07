@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/accesstoken"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/user"
 	"github.com/google/uuid"
 )
@@ -89,6 +90,21 @@ func (_c *UserCreate) AddTokens(v ...*AccessToken) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddTokenIDs(ids...)
+}
+
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_c *UserCreate) AddPlaystateIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddPlaystateIDs(ids...)
+	return _c
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_c *UserCreate) AddPlaystates(v ...*PlayState) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPlaystateIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -219,6 +235,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(accesstoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PlaystatesTable,
+			Columns: []string{user.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

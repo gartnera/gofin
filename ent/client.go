@@ -19,6 +19,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/user"
 )
 
@@ -33,6 +34,8 @@ type Client struct {
 	Library *LibraryClient
 	// MediaItem is the client for interacting with the MediaItem builders.
 	MediaItem *MediaItemClient
+	// PlayState is the client for interacting with the PlayState builders.
+	PlayState *PlayStateClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -49,6 +52,7 @@ func (c *Client) init() {
 	c.AccessToken = NewAccessTokenClient(c.config)
 	c.Library = NewLibraryClient(c.config)
 	c.MediaItem = NewMediaItemClient(c.config)
+	c.PlayState = NewPlayStateClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -145,6 +149,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AccessToken: NewAccessTokenClient(cfg),
 		Library:     NewLibraryClient(cfg),
 		MediaItem:   NewMediaItemClient(cfg),
+		PlayState:   NewPlayStateClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
 }
@@ -168,6 +173,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AccessToken: NewAccessTokenClient(cfg),
 		Library:     NewLibraryClient(cfg),
 		MediaItem:   NewMediaItemClient(cfg),
+		PlayState:   NewPlayStateClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
 }
@@ -200,6 +206,7 @@ func (c *Client) Use(hooks ...Hook) {
 	c.AccessToken.Use(hooks...)
 	c.Library.Use(hooks...)
 	c.MediaItem.Use(hooks...)
+	c.PlayState.Use(hooks...)
 	c.User.Use(hooks...)
 }
 
@@ -209,6 +216,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.AccessToken.Intercept(interceptors...)
 	c.Library.Intercept(interceptors...)
 	c.MediaItem.Intercept(interceptors...)
+	c.PlayState.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 }
 
@@ -221,6 +229,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Library.mutate(ctx, m)
 	case *MediaItemMutation:
 		return c.MediaItem.mutate(ctx, m)
+	case *PlayStateMutation:
+		return c.PlayState.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
@@ -682,6 +692,22 @@ func (c *MediaItemClient) QueryChildren(_m *MediaItem) *MediaItemQuery {
 	return query
 }
 
+// QueryPlaystates queries the playstates edge of a MediaItem.
+func (c *MediaItemClient) QueryPlaystates(_m *MediaItem) *PlayStateQuery {
+	query := (&PlayStateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mediaitem.Table, mediaitem.FieldID, id),
+			sqlgraph.To(playstate.Table, playstate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mediaitem.PlaystatesTable, mediaitem.PlaystatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *MediaItemClient) Hooks() []Hook {
 	return c.hooks.MediaItem
@@ -704,6 +730,171 @@ func (c *MediaItemClient) mutate(ctx context.Context, m *MediaItemMutation) (Val
 		return (&MediaItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown MediaItem mutation op: %q", m.Op())
+	}
+}
+
+// PlayStateClient is a client for the PlayState schema.
+type PlayStateClient struct {
+	config
+}
+
+// NewPlayStateClient returns a client for the PlayState from the given config.
+func NewPlayStateClient(c config) *PlayStateClient {
+	return &PlayStateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `playstate.Hooks(f(g(h())))`.
+func (c *PlayStateClient) Use(hooks ...Hook) {
+	c.hooks.PlayState = append(c.hooks.PlayState, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `playstate.Intercept(f(g(h())))`.
+func (c *PlayStateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PlayState = append(c.inters.PlayState, interceptors...)
+}
+
+// Create returns a builder for creating a PlayState entity.
+func (c *PlayStateClient) Create() *PlayStateCreate {
+	mutation := newPlayStateMutation(c.config, OpCreate)
+	return &PlayStateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PlayState entities.
+func (c *PlayStateClient) CreateBulk(builders ...*PlayStateCreate) *PlayStateCreateBulk {
+	return &PlayStateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PlayStateClient) MapCreateBulk(slice any, setFunc func(*PlayStateCreate, int)) *PlayStateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PlayStateCreateBulk{err: fmt.Errorf("calling to PlayStateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PlayStateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PlayStateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PlayState.
+func (c *PlayStateClient) Update() *PlayStateUpdate {
+	mutation := newPlayStateMutation(c.config, OpUpdate)
+	return &PlayStateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PlayStateClient) UpdateOne(_m *PlayState) *PlayStateUpdateOne {
+	mutation := newPlayStateMutation(c.config, OpUpdateOne, withPlayState(_m))
+	return &PlayStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PlayStateClient) UpdateOneID(id uuid.UUID) *PlayStateUpdateOne {
+	mutation := newPlayStateMutation(c.config, OpUpdateOne, withPlayStateID(id))
+	return &PlayStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PlayState.
+func (c *PlayStateClient) Delete() *PlayStateDelete {
+	mutation := newPlayStateMutation(c.config, OpDelete)
+	return &PlayStateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PlayStateClient) DeleteOne(_m *PlayState) *PlayStateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PlayStateClient) DeleteOneID(id uuid.UUID) *PlayStateDeleteOne {
+	builder := c.Delete().Where(playstate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PlayStateDeleteOne{builder}
+}
+
+// Query returns a query builder for PlayState.
+func (c *PlayStateClient) Query() *PlayStateQuery {
+	return &PlayStateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePlayState},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PlayState entity by its id.
+func (c *PlayStateClient) Get(ctx context.Context, id uuid.UUID) (*PlayState, error) {
+	return c.Query().Where(playstate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PlayStateClient) GetX(ctx context.Context, id uuid.UUID) *PlayState {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a PlayState.
+func (c *PlayStateClient) QueryUser(_m *PlayState) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(playstate.Table, playstate.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, playstate.UserTable, playstate.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryItem queries the item edge of a PlayState.
+func (c *PlayStateClient) QueryItem(_m *PlayState) *MediaItemQuery {
+	query := (&MediaItemClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(playstate.Table, playstate.FieldID, id),
+			sqlgraph.To(mediaitem.Table, mediaitem.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, playstate.ItemTable, playstate.ItemColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *PlayStateClient) Hooks() []Hook {
+	return c.hooks.PlayState
+}
+
+// Interceptors returns the client interceptors.
+func (c *PlayStateClient) Interceptors() []Interceptor {
+	return c.inters.PlayState
+}
+
+func (c *PlayStateClient) mutate(ctx context.Context, m *PlayStateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PlayStateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PlayStateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PlayStateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PlayStateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PlayState mutation op: %q", m.Op())
 	}
 }
 
@@ -831,6 +1022,22 @@ func (c *UserClient) QueryTokens(_m *User) *AccessTokenQuery {
 	return query
 }
 
+// QueryPlaystates queries the playstates edge of a User.
+func (c *UserClient) QueryPlaystates(_m *User) *PlayStateQuery {
+	query := (&PlayStateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(playstate.Table, playstate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PlaystatesTable, user.PlaystatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -859,9 +1066,9 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AccessToken, Library, MediaItem, User []ent.Hook
+		AccessToken, Library, MediaItem, PlayState, User []ent.Hook
 	}
 	inters struct {
-		AccessToken, Library, MediaItem, User []ent.Interceptor
+		AccessToken, Library, MediaItem, PlayState, User []ent.Interceptor
 	}
 )

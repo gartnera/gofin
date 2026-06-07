@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
 	"github.com/google/uuid"
 )
@@ -21,14 +22,15 @@ import (
 // MediaItemQuery is the builder for querying MediaItem entities.
 type MediaItemQuery struct {
 	config
-	ctx          *QueryContext
-	order        []mediaitem.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.MediaItem
-	withLibrary  *LibraryQuery
-	withParent   *MediaItemQuery
-	withChildren *MediaItemQuery
-	withFKs      bool
+	ctx            *QueryContext
+	order          []mediaitem.OrderOption
+	inters         []Interceptor
+	predicates     []predicate.MediaItem
+	withLibrary    *LibraryQuery
+	withParent     *MediaItemQuery
+	withChildren   *MediaItemQuery
+	withPlaystates *PlayStateQuery
+	withFKs        bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +126,28 @@ func (_q *MediaItemQuery) QueryChildren() *MediaItemQuery {
 			sqlgraph.From(mediaitem.Table, mediaitem.FieldID, selector),
 			sqlgraph.To(mediaitem.Table, mediaitem.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, mediaitem.ChildrenTable, mediaitem.ChildrenColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPlaystates chains the current query on the "playstates" edge.
+func (_q *MediaItemQuery) QueryPlaystates() *PlayStateQuery {
+	query := (&PlayStateClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mediaitem.Table, mediaitem.FieldID, selector),
+			sqlgraph.To(playstate.Table, playstate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mediaitem.PlaystatesTable, mediaitem.PlaystatesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -318,14 +342,15 @@ func (_q *MediaItemQuery) Clone() *MediaItemQuery {
 		return nil
 	}
 	return &MediaItemQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]mediaitem.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.MediaItem{}, _q.predicates...),
-		withLibrary:  _q.withLibrary.Clone(),
-		withParent:   _q.withParent.Clone(),
-		withChildren: _q.withChildren.Clone(),
+		config:         _q.config,
+		ctx:            _q.ctx.Clone(),
+		order:          append([]mediaitem.OrderOption{}, _q.order...),
+		inters:         append([]Interceptor{}, _q.inters...),
+		predicates:     append([]predicate.MediaItem{}, _q.predicates...),
+		withLibrary:    _q.withLibrary.Clone(),
+		withParent:     _q.withParent.Clone(),
+		withChildren:   _q.withChildren.Clone(),
+		withPlaystates: _q.withPlaystates.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +387,17 @@ func (_q *MediaItemQuery) WithChildren(opts ...func(*MediaItemQuery)) *MediaItem
 		opt(query)
 	}
 	_q.withChildren = query
+	return _q
+}
+
+// WithPlaystates tells the query-builder to eager-load the nodes that are connected to
+// the "playstates" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *MediaItemQuery) WithPlaystates(opts ...func(*PlayStateQuery)) *MediaItemQuery {
+	query := (&PlayStateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPlaystates = query
 	return _q
 }
 
@@ -444,10 +480,11 @@ func (_q *MediaItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Me
 		nodes       = []*MediaItem{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withLibrary != nil,
 			_q.withParent != nil,
 			_q.withChildren != nil,
+			_q.withPlaystates != nil,
 		}
 	)
 	if _q.withLibrary != nil || _q.withParent != nil {
@@ -490,6 +527,13 @@ func (_q *MediaItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Me
 		if err := _q.loadChildren(ctx, query, nodes,
 			func(n *MediaItem) { n.Edges.Children = []*MediaItem{} },
 			func(n *MediaItem, e *MediaItem) { n.Edges.Children = append(n.Edges.Children, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPlaystates; query != nil {
+		if err := _q.loadPlaystates(ctx, query, nodes,
+			func(n *MediaItem) { n.Edges.Playstates = []*PlayState{} },
+			func(n *MediaItem, e *PlayState) { n.Edges.Playstates = append(n.Edges.Playstates, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -586,6 +630,37 @@ func (_q *MediaItemQuery) loadChildren(ctx context.Context, query *MediaItemQuer
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "media_item_children" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *MediaItemQuery) loadPlaystates(ctx context.Context, query *PlayStateQuery, nodes []*MediaItem, init func(*MediaItem), assign func(*MediaItem, *PlayState)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*MediaItem)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.PlayState(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(mediaitem.PlaystatesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.media_item_playstates
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "media_item_playstates" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "media_item_playstates" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

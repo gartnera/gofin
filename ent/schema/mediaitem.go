@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -49,6 +50,10 @@ func (MediaItem) Fields() []ent.Field {
 		// image_path is an optional poster/cover file on disk.
 		field.String("image_path").
 			Default(""),
+		// media_streams holds probed stream metadata (codecs/resolution) for
+		// playable items.
+		field.JSON("media_streams", []probe.Stream{}).
+			Optional(),
 	}
 }
 
@@ -61,6 +66,7 @@ func (MediaItem) Edges() []ent.Edge {
 		edge.To("children", MediaItem.Type).
 			From("parent").
 			Unique(),
+		edge.To("playstates", PlayState.Type),
 	}
 }
 

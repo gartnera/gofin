@@ -3,6 +3,8 @@ package jellyfin
 import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/probe"
+	"github.com/google/uuid"
 	"github.com/sj14/jellyfin-go/api"
 )
 
@@ -51,7 +53,8 @@ func MapUser(u *ent.User, serverID string) api.UserDto {
 
 // MapItem converts an ent.MediaItem into a Jellyfin BaseItemDto. The item's
 // parent edge should be eager-loaded (WithParent) so ParentId is populated.
-func MapItem(it *ent.MediaItem, serverID string) api.BaseItemDto {
+// ps is the requesting user's play state for the item, or nil.
+func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItemDto {
 	dto := api.NewBaseItemDto()
 	dto.SetId(FormatID(it.ID))
 	dto.SetServerId(serverID)
@@ -94,7 +97,65 @@ func MapItem(it *ent.MediaItem, serverID string) api.BaseItemDto {
 		}
 		dto.SetMediaSources([]api.MediaSourceInfo{MediaSource(it)})
 	}
+	dto.SetUserData(UserDataFor(it.ID, it.RunTimeTicks, ps))
 	return *dto
+}
+
+// UserDataFor builds the per-user UserItemDataDto for an item. runtimeTicks is
+// used to compute the played percentage and may be 0 when unknown.
+func UserDataFor(itemID uuid.UUID, runtimeTicks int64, ps *ent.PlayState) api.UserItemDataDto {
+	ud := api.NewUserItemDataDto()
+	ud.SetItemId(FormatID(itemID))
+	if ps == nil {
+		ud.SetPlayed(false)
+		ud.SetPlaybackPositionTicks(0)
+		ud.SetPlayCount(0)
+		return *ud
+	}
+	ud.SetPlayed(ps.Played)
+	ud.SetPlaybackPositionTicks(ps.PlaybackPositionTicks)
+	ud.SetPlayCount(int32(ps.PlayCount))
+	if runtimeTicks > 0 && ps.PlaybackPositionTicks > 0 {
+		ud.SetPlayedPercentage(float64(ps.PlaybackPositionTicks) / float64(runtimeTicks) * 100)
+	}
+	if ps.LastPlayedDate != nil {
+		ud.SetLastPlayedDate(*ps.LastPlayedDate)
+	}
+	return *ud
+}
+
+// mapStreams converts stored probe streams into Jellyfin MediaStream values.
+func mapStreams(streams []probe.Stream) []api.MediaStream {
+	out := make([]api.MediaStream, 0, len(streams))
+	for _, s := range streams {
+		ms := api.NewMediaStream()
+		ms.SetIndex(s.Index)
+		ms.SetType(api.MediaStreamType(s.Type))
+		if s.Codec != "" {
+			ms.SetCodec(s.Codec)
+		}
+		if s.Width > 0 {
+			ms.SetWidth(s.Width)
+		}
+		if s.Height > 0 {
+			ms.SetHeight(s.Height)
+		}
+		if s.Channels > 0 {
+			ms.SetChannels(s.Channels)
+		}
+		if s.SampleRate > 0 {
+			ms.SetSampleRate(s.SampleRate)
+		}
+		if s.BitRate > 0 {
+			ms.SetBitRate(int32(s.BitRate))
+		}
+		if s.Language != "" {
+			ms.SetLanguage(s.Language)
+		}
+		ms.SetIsDefault(s.IsDefault)
+		out = append(out, *ms)
+	}
+	return out
 }
 
 // MediaSource builds the single direct-play MediaSourceInfo for a playable item.
@@ -115,6 +176,9 @@ func MediaSource(it *ent.MediaItem) api.MediaSourceInfo {
 	ms.SetSupportsDirectPlay(true)
 	ms.SetSupportsDirectStream(true)
 	ms.SetSupportsTranscoding(false)
+	if len(it.MediaStreams) > 0 {
+		ms.SetMediaStreams(mapStreams(it.MediaStreams))
+	}
 	return *ms
 }
 
@@ -138,11 +202,12 @@ func MapLibraryView(lib *ent.Library, serverID string) api.BaseItemDto {
 	return *dto
 }
 
-// QueryResult wraps items in a BaseItemDtoQueryResult with the total count.
-func QueryResult(items []api.BaseItemDto) api.BaseItemDtoQueryResult {
+// QueryResult wraps items in a BaseItemDtoQueryResult. total is the number of
+// records available before paging; startIndex is the offset of the first item.
+func QueryResult(items []api.BaseItemDto, total, startIndex int) api.BaseItemDtoQueryResult {
 	res := api.NewBaseItemDtoQueryResult()
 	res.SetItems(items)
-	res.SetTotalRecordCount(int32(len(items)))
-	res.SetStartIndex(0)
+	res.SetTotalRecordCount(int32(total))
+	res.SetStartIndex(int32(startIndex))
 	return *res
 }

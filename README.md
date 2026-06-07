@@ -13,6 +13,12 @@ video and audio. It is intentionally small: manual indexing, direct play only
 - Username/password auth with **bcrypt** hashing and persisted access tokens.
 - Movies, TV (Series → Season → Episode) and Music (Artist → Album → Track).
 - Direct play with HTTP range support (seeking) via `http.ServeContent`.
+- Playback state: watched status, resume positions (`/Sessions/Playing*`,
+  `/UserItems/Resume`, `UserData` on items).
+- Stream/codec metadata and durations via `ffprobe` when available (probing is
+  pluggable and degrades gracefully when it is not installed).
+- Paging, sorting and search on `/Items` (`Limit`, `StartIndex`, `SortBy`,
+  `searchTerm`).
 - [ent](https://entgo.io/) + SQLite (CGO `mattn/go-sqlite3`).
 
 ## Layout on disk vs. in the API
@@ -63,7 +69,13 @@ curl http://localhost:8096/System/Info/Public
 `GET /Users/{id}`, `GET /UserViews`, `GET /Items` (with `parentId`,
 `recursive`, `includeItemTypes`), `GET /Items/{id}`,
 `POST /Items/{id}/PlaybackInfo`, `GET /Videos|Audio/{id}/stream`,
-`GET /Items/{id}/Images/{type}`, and `/Sessions/Playing*` reporting (no-op).
+`GET /Items/{id}/Images/{type}`, `/Sessions/Playing*` + `/UserPlayedItems/{id}`
+play-state reporting, `GET /UserItems/Resume`, and assorted client-niceties
+(`/Users/Public`, `/QuickConnect/Enabled`, `/DisplayPreferences/{id}`,
+`/Sessions/Capabilities`, `/Sessions/Logout`).
+
+Probing media with `ffprobe` (from ffmpeg) populates durations and
+`MediaStreams`; without it the server still runs and direct-plays.
 
 ## Testing
 

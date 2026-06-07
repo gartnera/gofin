@@ -36,6 +36,7 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 	if title == "" {
 		title = fmt.Sprintf("Episode %d", parsed.Episode)
 	}
+	probed := s.probeFile(ctx, path)
 
 	existing, err := s.existingByPath(ctx, path)
 	if err != nil {
@@ -45,6 +46,8 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		return existing.Update().
 			SetName(title).
 			SetContainer(containerOf(path)).
+			SetRunTimeTicks(probed.RunTimeTicks).
+			SetMediaStreams(probed.Streams).
 			SetIndexNumber(parsed.Episode).
 			SetParentIndexNumber(parsed.Season).
 			SetParentID(season.ID).
@@ -57,6 +60,8 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		SetSortName(fmt.Sprintf("%04d", parsed.Episode)).
 		SetPath(path).
 		SetContainer(containerOf(path)).
+		SetRunTimeTicks(probed.RunTimeTicks).
+		SetMediaStreams(probed.Streams).
 		SetIndexNumber(parsed.Episode).
 		SetParentIndexNumber(parsed.Season).
 		SetLibrary(lib).

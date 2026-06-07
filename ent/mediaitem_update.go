@@ -9,10 +9,13 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
+	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
 
@@ -243,6 +246,24 @@ func (_u *MediaItemUpdate) SetNillableImagePath(v *string) *MediaItemUpdate {
 	return _u
 }
 
+// SetMediaStreams sets the "media_streams" field.
+func (_u *MediaItemUpdate) SetMediaStreams(v []probe.Stream) *MediaItemUpdate {
+	_u.mutation.SetMediaStreams(v)
+	return _u
+}
+
+// AppendMediaStreams appends value to the "media_streams" field.
+func (_u *MediaItemUpdate) AppendMediaStreams(v []probe.Stream) *MediaItemUpdate {
+	_u.mutation.AppendMediaStreams(v)
+	return _u
+}
+
+// ClearMediaStreams clears the value of the "media_streams" field.
+func (_u *MediaItemUpdate) ClearMediaStreams() *MediaItemUpdate {
+	_u.mutation.ClearMediaStreams()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdate) SetLibraryID(id uuid.UUID) *MediaItemUpdate {
 	_u.mutation.SetLibraryID(id)
@@ -296,6 +317,21 @@ func (_u *MediaItemUpdate) AddChildren(v ...*MediaItem) *MediaItemUpdate {
 	return _u.AddChildIDs(ids...)
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_u *MediaItemUpdate) AddPlaystateIDs(ids ...uuid.UUID) *MediaItemUpdate {
+	_u.mutation.AddPlaystateIDs(ids...)
+	return _u
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_u *MediaItemUpdate) AddPlaystates(v ...*PlayState) *MediaItemUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlaystateIDs(ids...)
+}
+
 // Mutation returns the MediaItemMutation object of the builder.
 func (_u *MediaItemUpdate) Mutation() *MediaItemMutation {
 	return _u.mutation
@@ -332,6 +368,27 @@ func (_u *MediaItemUpdate) RemoveChildren(v ...*MediaItem) *MediaItemUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChildIDs(ids...)
+}
+
+// ClearPlaystates clears all "playstates" edges to the PlayState entity.
+func (_u *MediaItemUpdate) ClearPlaystates() *MediaItemUpdate {
+	_u.mutation.ClearPlaystates()
+	return _u
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to PlayState entities by IDs.
+func (_u *MediaItemUpdate) RemovePlaystateIDs(ids ...uuid.UUID) *MediaItemUpdate {
+	_u.mutation.RemovePlaystateIDs(ids...)
+	return _u
+}
+
+// RemovePlaystates removes "playstates" edges to PlayState entities.
+func (_u *MediaItemUpdate) RemovePlaystates(v ...*PlayState) *MediaItemUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlaystateIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -445,6 +502,17 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ImagePath(); ok {
 		_spec.SetField(mediaitem.FieldImagePath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.MediaStreams(); ok {
+		_spec.SetField(mediaitem.FieldMediaStreams, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedMediaStreams(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldMediaStreams, value)
+		})
+	}
+	if _u.mutation.MediaStreamsCleared() {
+		_spec.ClearField(mediaitem.FieldMediaStreams, field.TypeJSON)
+	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -541,6 +609,51 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mediaitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlaystatesIDs(); len(nodes) > 0 && !_u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -782,6 +895,24 @@ func (_u *MediaItemUpdateOne) SetNillableImagePath(v *string) *MediaItemUpdateOn
 	return _u
 }
 
+// SetMediaStreams sets the "media_streams" field.
+func (_u *MediaItemUpdateOne) SetMediaStreams(v []probe.Stream) *MediaItemUpdateOne {
+	_u.mutation.SetMediaStreams(v)
+	return _u
+}
+
+// AppendMediaStreams appends value to the "media_streams" field.
+func (_u *MediaItemUpdateOne) AppendMediaStreams(v []probe.Stream) *MediaItemUpdateOne {
+	_u.mutation.AppendMediaStreams(v)
+	return _u
+}
+
+// ClearMediaStreams clears the value of the "media_streams" field.
+func (_u *MediaItemUpdateOne) ClearMediaStreams() *MediaItemUpdateOne {
+	_u.mutation.ClearMediaStreams()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdateOne) SetLibraryID(id uuid.UUID) *MediaItemUpdateOne {
 	_u.mutation.SetLibraryID(id)
@@ -835,6 +966,21 @@ func (_u *MediaItemUpdateOne) AddChildren(v ...*MediaItem) *MediaItemUpdateOne {
 	return _u.AddChildIDs(ids...)
 }
 
+// AddPlaystateIDs adds the "playstates" edge to the PlayState entity by IDs.
+func (_u *MediaItemUpdateOne) AddPlaystateIDs(ids ...uuid.UUID) *MediaItemUpdateOne {
+	_u.mutation.AddPlaystateIDs(ids...)
+	return _u
+}
+
+// AddPlaystates adds the "playstates" edges to the PlayState entity.
+func (_u *MediaItemUpdateOne) AddPlaystates(v ...*PlayState) *MediaItemUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPlaystateIDs(ids...)
+}
+
 // Mutation returns the MediaItemMutation object of the builder.
 func (_u *MediaItemUpdateOne) Mutation() *MediaItemMutation {
 	return _u.mutation
@@ -871,6 +1017,27 @@ func (_u *MediaItemUpdateOne) RemoveChildren(v ...*MediaItem) *MediaItemUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChildIDs(ids...)
+}
+
+// ClearPlaystates clears all "playstates" edges to the PlayState entity.
+func (_u *MediaItemUpdateOne) ClearPlaystates() *MediaItemUpdateOne {
+	_u.mutation.ClearPlaystates()
+	return _u
+}
+
+// RemovePlaystateIDs removes the "playstates" edge to PlayState entities by IDs.
+func (_u *MediaItemUpdateOne) RemovePlaystateIDs(ids ...uuid.UUID) *MediaItemUpdateOne {
+	_u.mutation.RemovePlaystateIDs(ids...)
+	return _u
+}
+
+// RemovePlaystates removes "playstates" edges to PlayState entities.
+func (_u *MediaItemUpdateOne) RemovePlaystates(v ...*PlayState) *MediaItemUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePlaystateIDs(ids...)
 }
 
 // Where appends a list predicates to the MediaItemUpdate builder.
@@ -1014,6 +1181,17 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	if value, ok := _u.mutation.ImagePath(); ok {
 		_spec.SetField(mediaitem.FieldImagePath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.MediaStreams(); ok {
+		_spec.SetField(mediaitem.FieldMediaStreams, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedMediaStreams(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldMediaStreams, value)
+		})
+	}
+	if _u.mutation.MediaStreamsCleared() {
+		_spec.ClearField(mediaitem.FieldMediaStreams, field.TypeJSON)
+	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1110,6 +1288,51 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(mediaitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPlaystatesIDs(); len(nodes) > 0 && !_u.mutation.PlaystatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PlaystatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   mediaitem.PlaystatesTable,
+			Columns: []string{mediaitem.PlaystatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playstate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

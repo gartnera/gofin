@@ -18,6 +18,8 @@ type Tx struct {
 	Library *LibraryClient
 	// MediaItem is the client for interacting with the MediaItem builders.
 	MediaItem *MediaItemClient
+	// PlayState is the client for interacting with the PlayState builders.
+	PlayState *PlayStateClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -154,6 +156,7 @@ func (tx *Tx) init() {
 	tx.AccessToken = NewAccessTokenClient(tx.config)
 	tx.Library = NewLibraryClient(tx.config)
 	tx.MediaItem = NewMediaItemClient(tx.config)
+	tx.PlayState = NewPlayStateClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

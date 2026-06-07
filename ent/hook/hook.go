@@ -45,6 +45,18 @@ func (f MediaItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MediaItemMutation", m)
 }
 
+// The PlayStateFunc type is an adapter to allow the use of ordinary
+// function as PlayState mutator.
+type PlayStateFunc func(context.Context, *ent.PlayStateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PlayStateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PlayStateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PlayStateMutation", m)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)
