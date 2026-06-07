@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -313,6 +314,70 @@ func streamRequest(t *testing.T, env *testEnv, itemID, rangeHeader string) *http
 	return resp
 }
 
+// mustFindItem returns the first indexed item of the given kind, failing the
+// test if none exists.
+func mustFindItem(t *testing.T, client *jfapi.APIClient, kind jfapi.BaseItemKind) jfapi.BaseItemDto {
+	t.Helper()
+	res, _, err := client.ItemsAPI.GetItems(context.Background()).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{kind}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatalf("no %s items indexed", kind)
+	}
+	return res.Items[0]
+}
+
+// authedGET issues a GET to path on the test server using the env's access
+// token (via ApiKey query parameter).
+func authedGET(t *testing.T, env *testEnv, path string) *http.Response {
+	t.Helper()
+	sep := "?"
+	if containsRune(path, '?') {
+		sep = "&"
+	}
+	url := fmt.Sprintf("%s%s%sApiKey=%s", env.srv.URL, path, sep, env.token)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+// getJSON GETs path with the env token and decodes the body into T.
+func getJSON[T any](t *testing.T, fullURL, token string) T {
+	t.Helper()
+	sep := "?"
+	if containsRune(fullURL, '?') {
+		sep = "&"
+	}
+	req, err := http.NewRequest("GET", fullURL+sep+"ApiKey="+token, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("GET %s = %d: %s", fullURL, resp.StatusCode, body)
+	}
+	var v T
+	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+		t.Fatalf("decode %s: %v", fullURL, err)
+	}
+	return v
+}
+
 // firstMovie returns the id of an indexed movie.
 func firstMovie(t *testing.T, client *jfapi.APIClient) string {
 	t.Helper()
@@ -413,6 +478,177 @@ func TestProgressResumeAndPlayed(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("movie not found in item list")
+	}
+}
+
+func TestShowsSeasonsAndEpisodes(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	series := mustFindItem(t, client, jfapi.BASEITEMKIND_SERIES)
+
+	seasons, _, err := client.TvShowsAPI.GetSeasons(ctx, series.GetId()).Execute()
+	if err != nil {
+		t.Fatalf("GetSeasons: %v", err)
+	}
+	if len(seasons.Items) != 1 || seasons.Items[0].GetType() != jfapi.BASEITEMKIND_SEASON {
+		t.Fatalf("seasons = %+v, want 1 Season", seasons.Items)
+	}
+	seasonID := seasons.Items[0].GetId()
+
+	// All episodes under the series.
+	eps, _, err := client.TvShowsAPI.GetEpisodes(ctx, series.GetId()).Execute()
+	if err != nil {
+		t.Fatalf("GetEpisodes: %v", err)
+	}
+	if len(eps.Items) != 1 || eps.Items[0].GetType() != jfapi.BASEITEMKIND_EPISODE {
+		t.Fatalf("episodes = %+v, want 1 Episode", eps.Items)
+	}
+
+	// Episodes filtered by season id.
+	scoped, _, err := client.TvShowsAPI.GetEpisodes(ctx, series.GetId()).SeasonId(seasonID).Execute()
+	if err != nil {
+		t.Fatalf("GetEpisodes(season): %v", err)
+	}
+	if len(scoped.Items) != 1 {
+		t.Errorf("episodes for season = %d, want 1", len(scoped.Items))
+	}
+
+	// Unknown series id resolves to an empty result, not a 5xx.
+	bogus, _, err := client.TvShowsAPI.GetSeasons(ctx, "ffffffffffffffffffffffffffffffff").Execute()
+	if err != nil {
+		t.Fatalf("GetSeasons(bogus): %v", err)
+	}
+	if len(bogus.Items) != 0 {
+		t.Errorf("bogus seasons = %d, want 0", len(bogus.Items))
+	}
+}
+
+func TestLatestAndNextUpAndIntros(t *testing.T) {
+	env := setupEnv(t)
+	token := env.token
+
+	// Latest is a bare array; NextUp / Intros are QueryResult-shaped with an
+	// `Items: []` array even when empty.
+	latest := getJSON[[]map[string]any](t, env.srv.URL+"/Users/_/Items/Latest?Limit=10", token)
+	if len(latest) == 0 {
+		t.Error("Latest returned no items")
+	}
+
+	nextUp := getJSON[map[string]any](t, env.srv.URL+"/Shows/NextUp", token)
+	if _, ok := nextUp["Items"].([]any); !ok {
+		t.Errorf("NextUp.Items = %v, want []", nextUp["Items"])
+	}
+
+	client := authedClient(env.srv.URL, env.token)
+	movieID := firstMovie(t, client)
+	intros := getJSON[map[string]any](t, env.srv.URL+"/Users/_/Items/"+movieID+"/Intros", token)
+	if _, ok := intros["Items"].([]any); !ok {
+		t.Errorf("Intros.Items = %v, want []", intros["Items"])
+	}
+}
+
+func TestLibraryViewResolvableAsItem(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	views, _, err := client.UserViewsAPI.GetUserViews(ctx).Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(views.Items) == 0 {
+		t.Fatal("no views")
+	}
+	libID := views.Items[0].GetId()
+
+	// The web client requests /Items/{libraryId} as part of its navigation;
+	// gofin used to 404 for any id not in the MediaItem table.
+	got, _, err := client.UserLibraryAPI.GetItem(ctx, libID).Execute()
+	if err != nil {
+		t.Fatalf("GetItem(library): %v", err)
+	}
+	if got.GetType() != jfapi.BASEITEMKIND_COLLECTION_FOLDER {
+		t.Errorf("type = %v, want CollectionFolder", got.GetType())
+	}
+}
+
+func TestEndpointAndBitrateTestAndDisplayPrefsWrite(t *testing.T) {
+	env := setupEnv(t)
+
+	ep := getJSON[map[string]any](t, env.srv.URL+"/System/Endpoint", env.token)
+	if local, _ := ep["IsLocal"].(bool); !local {
+		t.Errorf("IsLocal = %v, want true", ep["IsLocal"])
+	}
+
+	resp := authedGET(t, env, "/Playback/BitrateTest?Size=4096")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("BitrateTest status = %d, want 200", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if len(body) != 4096 {
+		t.Errorf("BitrateTest body len = %d, want 4096", len(body))
+	}
+
+	// POST to DisplayPreferences must be accepted; the web client treats a
+	// 405/404 here as fatal during navigation.
+	dprResp := postAuthed(t, env, "/DisplayPreferences/usersettings?client=emby")
+	defer dprResp.Body.Close()
+	if dprResp.StatusCode != http.StatusNoContent {
+		t.Errorf("POST DisplayPreferences status = %d, want 204", dprResp.StatusCode)
+	}
+}
+
+func TestStreamWithContainerExtension(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	movieID := firstMovie(t, client)
+
+	// The web client appends the container as a fake extension; path
+	// normalisation should rewrite it back to /stream.
+	url := fmt.Sprintf("%s/Videos/%s/stream.mp4?Static=true&ApiKey=%s", env.srv.URL, movieID, env.token)
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("stream.mp4 status = %d, want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct == "" || ct[:5] != "video" {
+		t.Errorf("Content-Type = %q, want video/*", ct)
+	}
+}
+
+func TestAudioItemExposesAlbumLinks(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	tracks, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_AUDIO}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tracks.Items) == 0 {
+		t.Fatal("no audio items indexed")
+	}
+	track := tracks.Items[0]
+
+	// AlbumId is what makes "open the album" links work in the now-playing
+	// bar, and the album page reads ArtistItems/AlbumArtists unconditionally.
+	if track.GetAlbumId() == "" {
+		t.Error("AlbumId is empty")
+	}
+	if len(track.GetArtistItems()) == 0 {
+		t.Error("ArtistItems is empty")
+	}
+	if len(track.GetAlbumArtists()) == 0 {
+		t.Error("AlbumArtists is empty")
 	}
 }
 
