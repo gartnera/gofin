@@ -8,6 +8,7 @@ import (
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/scanner"
+	"github.com/rs/cors"
 )
 
 // Version is the reported server version.
@@ -59,9 +60,15 @@ func deriveServerID(name string) string {
 	return hex.EncodeToString(sum[:16])
 }
 
+var corsHandler = cors.New(cors.Options{
+	AllowedOrigins: []string{"*"},
+	AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
+	AllowedHeaders: []string{"Authorization", "Content-Type", "X-Emby-Authorization", "X-MediaBrowser-Token"},
+})
+
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	corsHandler.Handler(s.mux).ServeHTTP(w, r)
 }
 
 func (s *Server) routes() {
