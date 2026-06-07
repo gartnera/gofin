@@ -5,13 +5,16 @@
 # burned-in label (series / season / episode) and a distinct audio tone so the
 # files are easy to tell apart while testing playback.
 #
+# Output is webm (VP9 video + Opus audio) — royalty-free codecs that direct
+# play in every modern browser, including Chromium builds without H.264/AAC.
+#
 # The output is laid out the way gofin's tvshows scanner expects:
 #
 #   <outdir>/
 #     <Series Name>/
 #       Season 01/
-#         <Series Name> S01E01.mp4
-#         <Series Name> S01E02.mp4
+#         <Series Name> S01E01.webm
+#         <Series Name> S01E02.webm
 #       Season 02/
 #         ...
 #
@@ -20,7 +23,8 @@
 #
 # Defaults: outdir=./sample-tv, seasons=2, episodes-per-season=3
 #
-# Requires: ffmpeg (with libx264 and the lavfi testsrc/sine sources).
+# Requires: ffmpeg (with libvpx-vp9, libopus, and the lavfi testsrc/sine
+# sources).
 
 set -euo pipefail
 
@@ -78,8 +82,8 @@ gen_episode() {
     -f lavfi -i "${vf}" \
     -f lavfi -i "sine=frequency=${freq}:sample_rate=48000" \
     -t "$DURATION" \
-    -c:v libx264 -preset veryfast -pix_fmt yuv420p \
-    -c:a aac -b:a 128k \
+    -c:v libvpx-vp9 -b:v 300k -deadline realtime -cpu-used 8 -pix_fmt yuv420p \
+    -c:a libopus -b:a 64k \
     -metadata title="${series} ${tag}" \
     "$outfile"
 }
@@ -94,7 +98,7 @@ for series in "${SERIES[@]}"; do
     season_dir="${OUTDIR}/${series}/Season $(printf '%02d' "$s")"
     mkdir -p "$season_dir"
     for ((e = 1; e <= EPISODES; e++)); do
-      outfile="${season_dir}/${series} S$(printf '%02d' "$s")E$(printf '%02d' "$e").mp4"
+      outfile="${season_dir}/${series} S$(printf '%02d' "$s")E$(printf '%02d' "$e").webm"
       echo "  -> ${outfile}"
       gen_episode "$series" "$s" "$e" "$outfile"
     done
