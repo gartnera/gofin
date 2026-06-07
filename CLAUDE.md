@@ -16,6 +16,14 @@ Minimal Jellyfin-compatible media server in Go.
   whose files vanished. Honours Jellyfin `.ignore` files (`ignore.go`): an empty
   one excludes its directory, a non-empty one applies gitignore-style patterns.
   Index mutations are serialised by a mutex so scans and the watcher don't race.
+  TV episode naming (`episode.go`) is a port of Jellyfin's `Emby.Naming/TV`
+  rules: an ordered regex list (transcribed from `NamingOptions.cs`) is matched
+  against the full path with `github.com/dlclark/regexp2` (.NET semantics —
+  needed for the lookaheads/named groups RE2 can't express). This handles flat
+  shows, anime absolute numbering, multi-episode ranges (`index_number_end`),
+  and date-based detection; series names are normalised (year/quality tags
+  stripped) so a show's seasons merge into one Series even across directories.
+  Episodes with no season default to season 1; date-only episodes are skipped.
 - `internal/watch` — `fsnotify` watcher that keeps the index live: new/modified
   files are indexed (debounced) and removals are dropped. Started by `serve`.
 - `internal/probe` — `ffprobe`-backed media probing behind a `Prober`

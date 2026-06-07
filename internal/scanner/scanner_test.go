@@ -103,6 +103,69 @@ func TestScanLibraries(t *testing.T) {
 	}
 }
 
+func TestScanAdvancedTVShows(t *testing.T) {
+	root := t.TempDir()
+	tv := filepath.Join(root, "tv")
+	// Flat show: episodes sit directly in the series folder, no Season dir.
+	writeFile(t, filepath.Join(tv, "Firefly", "Firefly S01E01.mkv"))
+	writeFile(t, filepath.Join(tv, "Firefly", "Firefly S01E02.mkv"))
+	// Same series, seasons split across unrelated directories. The year on one
+	// folder and the bare name on the other must still resolve to one Series.
+	writeFile(t, filepath.Join(tv, "Breaking Bad (2008)", "Season 01", "Breaking Bad - S01E01.mkv"))
+	writeFile(t, filepath.Join(tv, "imports", "Breaking Bad", "S02E01 - Title.mkv"))
+	// Multi-episode file.
+	writeFile(t, filepath.Join(tv, "Chuck", "Chuck - S01E01-E02.mkv"))
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	sc := New(client, WithProber(probe.Noop{}))
+	lib, err := sc.EnsureLibrary(ctx, "TV", "tvshows", tv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+
+	checks := map[mediaitem.Kind]int{
+		mediaitem.KindSeries:  3, // Firefly, Breaking Bad, Chuck
+		mediaitem.KindSeason:  4, // Firefly S1, Breaking Bad S1+S2, Chuck S1
+		mediaitem.KindEpisode: 5,
+	}
+	for kind, want := range checks {
+		if got := countKind(t, client, kind); got != want {
+			t.Errorf("%s count = %d, want %d", kind, got, want)
+		}
+	}
+
+	// The split Breaking Bad seasons must hang off a single Series row.
+	bb, err := client.MediaItem.Query().
+		Where(mediaitem.KindEQ(mediaitem.KindSeries), mediaitem.NameEQ("Breaking Bad")).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("Breaking Bad series: %v", err)
+	}
+	if n := bb.QueryChildren().CountX(ctx); n != 2 {
+		t.Errorf("Breaking Bad season count = %d, want 2", n)
+	}
+
+	// The multi-episode file records an ending episode number.
+	chuck, err := client.MediaItem.Query().
+		Where(mediaitem.KindEQ(mediaitem.KindEpisode), mediaitem.IndexNumberEndNotNil()).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("multi-episode lookup: %v", err)
+	}
+	if chuck.IndexNumber == nil || *chuck.IndexNumber != 1 || chuck.IndexNumberEnd == nil || *chuck.IndexNumberEnd != 2 {
+		t.Errorf("multi-episode = %v-%v, want 1-2", chuck.IndexNumber, chuck.IndexNumberEnd)
+	}
+}
+
 func TestScanStoresProbeMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "movies", "Inception (2010).mp4"))

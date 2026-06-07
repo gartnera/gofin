@@ -1254,6 +1254,8 @@ type MediaItemMutation struct {
 	addproduction_year     *int32
 	index_number           *int32
 	addindex_number        *int32
+	index_number_end       *int32
+	addindex_number_end    *int32
 	parent_index_number    *int32
 	addparent_index_number *int32
 	overview               *string
@@ -1869,6 +1871,76 @@ func (m *MediaItemMutation) ResetIndexNumber() {
 	delete(m.clearedFields, mediaitem.FieldIndexNumber)
 }
 
+// SetIndexNumberEnd sets the "index_number_end" field.
+func (m *MediaItemMutation) SetIndexNumberEnd(i int32) {
+	m.index_number_end = &i
+	m.addindex_number_end = nil
+}
+
+// IndexNumberEnd returns the value of the "index_number_end" field in the mutation.
+func (m *MediaItemMutation) IndexNumberEnd() (r int32, exists bool) {
+	v := m.index_number_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIndexNumberEnd returns the old "index_number_end" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldIndexNumberEnd(ctx context.Context) (v *int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIndexNumberEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIndexNumberEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIndexNumberEnd: %w", err)
+	}
+	return oldValue.IndexNumberEnd, nil
+}
+
+// AddIndexNumberEnd adds i to the "index_number_end" field.
+func (m *MediaItemMutation) AddIndexNumberEnd(i int32) {
+	if m.addindex_number_end != nil {
+		*m.addindex_number_end += i
+	} else {
+		m.addindex_number_end = &i
+	}
+}
+
+// AddedIndexNumberEnd returns the value that was added to the "index_number_end" field in this mutation.
+func (m *MediaItemMutation) AddedIndexNumberEnd() (r int32, exists bool) {
+	v := m.addindex_number_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIndexNumberEnd clears the value of the "index_number_end" field.
+func (m *MediaItemMutation) ClearIndexNumberEnd() {
+	m.index_number_end = nil
+	m.addindex_number_end = nil
+	m.clearedFields[mediaitem.FieldIndexNumberEnd] = struct{}{}
+}
+
+// IndexNumberEndCleared returns if the "index_number_end" field was cleared in this mutation.
+func (m *MediaItemMutation) IndexNumberEndCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldIndexNumberEnd]
+	return ok
+}
+
+// ResetIndexNumberEnd resets all changes to the "index_number_end" field.
+func (m *MediaItemMutation) ResetIndexNumberEnd() {
+	m.index_number_end = nil
+	m.addindex_number_end = nil
+	delete(m.clearedFields, mediaitem.FieldIndexNumberEnd)
+}
+
 // SetParentIndexNumber sets the "parent_index_number" field.
 func (m *MediaItemMutation) SetParentIndexNumber(i int32) {
 	m.parent_index_number = &i
@@ -2332,7 +2404,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2362,6 +2434,9 @@ func (m *MediaItemMutation) Fields() []string {
 	}
 	if m.index_number != nil {
 		fields = append(fields, mediaitem.FieldIndexNumber)
+	}
+	if m.index_number_end != nil {
+		fields = append(fields, mediaitem.FieldIndexNumberEnd)
 	}
 	if m.parent_index_number != nil {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
@@ -2406,6 +2481,8 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.ProductionYear()
 	case mediaitem.FieldIndexNumber:
 		return m.IndexNumber()
+	case mediaitem.FieldIndexNumberEnd:
+		return m.IndexNumberEnd()
 	case mediaitem.FieldParentIndexNumber:
 		return m.ParentIndexNumber()
 	case mediaitem.FieldOverview:
@@ -2445,6 +2522,8 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldProductionYear(ctx)
 	case mediaitem.FieldIndexNumber:
 		return m.OldIndexNumber(ctx)
+	case mediaitem.FieldIndexNumberEnd:
+		return m.OldIndexNumberEnd(ctx)
 	case mediaitem.FieldParentIndexNumber:
 		return m.OldParentIndexNumber(ctx)
 	case mediaitem.FieldOverview:
@@ -2534,6 +2613,13 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIndexNumber(v)
 		return nil
+	case mediaitem.FieldIndexNumberEnd:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIndexNumberEnd(v)
+		return nil
 	case mediaitem.FieldParentIndexNumber:
 		v, ok := value.(int32)
 		if !ok {
@@ -2592,6 +2678,9 @@ func (m *MediaItemMutation) AddedFields() []string {
 	if m.addindex_number != nil {
 		fields = append(fields, mediaitem.FieldIndexNumber)
 	}
+	if m.addindex_number_end != nil {
+		fields = append(fields, mediaitem.FieldIndexNumberEnd)
+	}
 	if m.addparent_index_number != nil {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
 	}
@@ -2613,6 +2702,8 @@ func (m *MediaItemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedProductionYear()
 	case mediaitem.FieldIndexNumber:
 		return m.AddedIndexNumber()
+	case mediaitem.FieldIndexNumberEnd:
+		return m.AddedIndexNumberEnd()
 	case mediaitem.FieldParentIndexNumber:
 		return m.AddedParentIndexNumber()
 	}
@@ -2659,6 +2750,13 @@ func (m *MediaItemMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddIndexNumber(v)
 		return nil
+	case mediaitem.FieldIndexNumberEnd:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIndexNumberEnd(v)
+		return nil
 	case mediaitem.FieldParentIndexNumber:
 		v, ok := value.(int32)
 		if !ok {
@@ -2679,6 +2777,9 @@ func (m *MediaItemMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(mediaitem.FieldIndexNumber) {
 		fields = append(fields, mediaitem.FieldIndexNumber)
+	}
+	if m.FieldCleared(mediaitem.FieldIndexNumberEnd) {
+		fields = append(fields, mediaitem.FieldIndexNumberEnd)
 	}
 	if m.FieldCleared(mediaitem.FieldParentIndexNumber) {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
@@ -2705,6 +2806,9 @@ func (m *MediaItemMutation) ClearField(name string) error {
 		return nil
 	case mediaitem.FieldIndexNumber:
 		m.ClearIndexNumber()
+		return nil
+	case mediaitem.FieldIndexNumberEnd:
+		m.ClearIndexNumberEnd()
 		return nil
 	case mediaitem.FieldParentIndexNumber:
 		m.ClearParentIndexNumber()
@@ -2749,6 +2853,9 @@ func (m *MediaItemMutation) ResetField(name string) error {
 		return nil
 	case mediaitem.FieldIndexNumber:
 		m.ResetIndexNumber()
+		return nil
+	case mediaitem.FieldIndexNumberEnd:
+		m.ResetIndexNumberEnd()
 		return nil
 	case mediaitem.FieldParentIndexNumber:
 		m.ResetParentIndexNumber()

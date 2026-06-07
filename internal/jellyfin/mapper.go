@@ -94,6 +94,9 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 	if it.IndexNumber != nil {
 		dto.SetIndexNumber(*it.IndexNumber)
 	}
+	if it.IndexNumberEnd != nil {
+		dto.SetIndexNumberEnd(*it.IndexNumberEnd)
+	}
 	if it.ParentIndexNumber != nil {
 		dto.SetParentIndexNumber(*it.ParentIndexNumber)
 	}

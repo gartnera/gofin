@@ -35,6 +35,8 @@ const (
 	FieldProductionYear = "production_year"
 	// FieldIndexNumber holds the string denoting the index_number field in the database.
 	FieldIndexNumber = "index_number"
+	// FieldIndexNumberEnd holds the string denoting the index_number_end field in the database.
+	FieldIndexNumberEnd = "index_number_end"
 	// FieldParentIndexNumber holds the string denoting the parent_index_number field in the database.
 	FieldParentIndexNumber = "parent_index_number"
 	// FieldOverview holds the string denoting the overview field in the database.
@@ -92,6 +94,7 @@ var Columns = []string{
 	FieldRunTimeTicks,
 	FieldProductionYear,
 	FieldIndexNumber,
+	FieldIndexNumberEnd,
 	FieldParentIndexNumber,
 	FieldOverview,
 	FieldAlbumArtist,
@@ -230,6 +233,11 @@ func ByProductionYear(opts ...sql.OrderTermOption) OrderOption {
 // ByIndexNumber orders the results by the index_number field.
 func ByIndexNumber(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIndexNumber, opts...).ToFunc()
+}
+
+// ByIndexNumberEnd orders the results by the index_number_end field.
+func ByIndexNumberEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIndexNumberEnd, opts...).ToFunc()
 }
 
 // ByParentIndexNumber orders the results by the parent_index_number field.
