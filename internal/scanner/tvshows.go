@@ -43,12 +43,16 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 
 	title := parsed.Title
 	if title == "" {
-		title = fmt.Sprintf("Episode %d", parsed.Episode)
+		if parsed.EndEpisode != nil {
+			title = fmt.Sprintf("Episodes %d-%d", parsed.Episode, *parsed.EndEpisode)
+		} else {
+			title = fmt.Sprintf("Episode %d", parsed.Episode)
+		}
 	}
 	probed := s.probeFile(ctx, path)
 
 	if existing != nil {
-		return existing.Update().
+		upd := existing.Update().
 			SetName(title).
 			SetContainer(containerOf(path)).
 			SetRunTimeTicks(probed.RunTimeTicks).
@@ -57,11 +61,16 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 			SetSize(info.Size()).
 			SetIndexNumber(parsed.Episode).
 			SetParentIndexNumber(parsed.Season).
-			SetParentID(season.ID).
-			Exec(ctx)
+			SetParentID(season.ID)
+		if parsed.EndEpisode != nil {
+			upd = upd.SetIndexNumberEnd(*parsed.EndEpisode)
+		} else {
+			upd = upd.ClearIndexNumberEnd()
+		}
+		return upd.Exec(ctx)
 	}
 
-	return s.client.MediaItem.Create().
+	create := s.client.MediaItem.Create().
 		SetKind(mediaitem.KindEpisode).
 		SetName(title).
 		SetSortName(fmt.Sprintf("%04d", parsed.Episode)).
@@ -74,6 +83,9 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		SetIndexNumber(parsed.Episode).
 		SetParentIndexNumber(parsed.Season).
 		SetLibrary(lib).
-		SetParentID(season.ID).
-		Exec(ctx)
+		SetParentID(season.ID)
+	if parsed.EndEpisode != nil {
+		create = create.SetIndexNumberEnd(*parsed.EndEpisode)
+	}
+	return create.Exec(ctx)
 }

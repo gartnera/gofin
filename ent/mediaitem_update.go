@@ -219,6 +219,33 @@ func (_u *MediaItemUpdate) ClearIndexNumber() *MediaItemUpdate {
 	return _u
 }
 
+// SetIndexNumberEnd sets the "index_number_end" field.
+func (_u *MediaItemUpdate) SetIndexNumberEnd(v int32) *MediaItemUpdate {
+	_u.mutation.ResetIndexNumberEnd()
+	_u.mutation.SetIndexNumberEnd(v)
+	return _u
+}
+
+// SetNillableIndexNumberEnd sets the "index_number_end" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableIndexNumberEnd(v *int32) *MediaItemUpdate {
+	if v != nil {
+		_u.SetIndexNumberEnd(*v)
+	}
+	return _u
+}
+
+// AddIndexNumberEnd adds value to the "index_number_end" field.
+func (_u *MediaItemUpdate) AddIndexNumberEnd(v int32) *MediaItemUpdate {
+	_u.mutation.AddIndexNumberEnd(v)
+	return _u
+}
+
+// ClearIndexNumberEnd clears the value of the "index_number_end" field.
+func (_u *MediaItemUpdate) ClearIndexNumberEnd() *MediaItemUpdate {
+	_u.mutation.ClearIndexNumberEnd()
+	return _u
+}
+
 // SetParentIndexNumber sets the "parent_index_number" field.
 func (_u *MediaItemUpdate) SetParentIndexNumber(v int32) *MediaItemUpdate {
 	_u.mutation.ResetParentIndexNumber()
@@ -537,6 +564,15 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.IndexNumberCleared() {
 		_spec.ClearField(mediaitem.FieldIndexNumber, field.TypeInt32)
+	}
+	if value, ok := _u.mutation.IndexNumberEnd(); ok {
+		_spec.SetField(mediaitem.FieldIndexNumberEnd, field.TypeInt32, value)
+	}
+	if value, ok := _u.mutation.AddedIndexNumberEnd(); ok {
+		_spec.AddField(mediaitem.FieldIndexNumberEnd, field.TypeInt32, value)
+	}
+	if _u.mutation.IndexNumberEndCleared() {
+		_spec.ClearField(mediaitem.FieldIndexNumberEnd, field.TypeInt32)
 	}
 	if value, ok := _u.mutation.ParentIndexNumber(); ok {
 		_spec.SetField(mediaitem.FieldParentIndexNumber, field.TypeInt32, value)
@@ -922,6 +958,33 @@ func (_u *MediaItemUpdateOne) ClearIndexNumber() *MediaItemUpdateOne {
 	return _u
 }
 
+// SetIndexNumberEnd sets the "index_number_end" field.
+func (_u *MediaItemUpdateOne) SetIndexNumberEnd(v int32) *MediaItemUpdateOne {
+	_u.mutation.ResetIndexNumberEnd()
+	_u.mutation.SetIndexNumberEnd(v)
+	return _u
+}
+
+// SetNillableIndexNumberEnd sets the "index_number_end" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableIndexNumberEnd(v *int32) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetIndexNumberEnd(*v)
+	}
+	return _u
+}
+
+// AddIndexNumberEnd adds value to the "index_number_end" field.
+func (_u *MediaItemUpdateOne) AddIndexNumberEnd(v int32) *MediaItemUpdateOne {
+	_u.mutation.AddIndexNumberEnd(v)
+	return _u
+}
+
+// ClearIndexNumberEnd clears the value of the "index_number_end" field.
+func (_u *MediaItemUpdateOne) ClearIndexNumberEnd() *MediaItemUpdateOne {
+	_u.mutation.ClearIndexNumberEnd()
+	return _u
+}
+
 // SetParentIndexNumber sets the "parent_index_number" field.
 func (_u *MediaItemUpdateOne) SetParentIndexNumber(v int32) *MediaItemUpdateOne {
 	_u.mutation.ResetParentIndexNumber()
@@ -1270,6 +1333,15 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	}
 	if _u.mutation.IndexNumberCleared() {
 		_spec.ClearField(mediaitem.FieldIndexNumber, field.TypeInt32)
+	}
+	if value, ok := _u.mutation.IndexNumberEnd(); ok {
+		_spec.SetField(mediaitem.FieldIndexNumberEnd, field.TypeInt32, value)
+	}
+	if value, ok := _u.mutation.AddedIndexNumberEnd(); ok {
+		_spec.AddField(mediaitem.FieldIndexNumberEnd, field.TypeInt32, value)
+	}
+	if _u.mutation.IndexNumberEndCleared() {
+		_spec.ClearField(mediaitem.FieldIndexNumberEnd, field.TypeInt32)
 	}
 	if value, ok := _u.mutation.ParentIndexNumber(); ok {
 		_spec.SetField(mediaitem.FieldParentIndexNumber, field.TypeInt32, value)

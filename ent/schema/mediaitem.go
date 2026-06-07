@@ -47,6 +47,11 @@ func (MediaItem) Fields() []ent.Field {
 		field.Int32("index_number").
 			Optional().
 			Nillable(),
+		// index_number_end is the final episode number for a multi-episode file
+		// (e.g. "S01E01-E02"); nil for single episodes.
+		field.Int32("index_number_end").
+			Optional().
+			Nillable(),
 		field.Int32("parent_index_number").
 			Optional().
 			Nillable(),

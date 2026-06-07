@@ -59,6 +59,7 @@ var (
 		{Name: "run_time_ticks", Type: field.TypeInt64, Default: 0},
 		{Name: "production_year", Type: field.TypeInt32, Nullable: true},
 		{Name: "index_number", Type: field.TypeInt32, Nullable: true},
+		{Name: "index_number_end", Type: field.TypeInt32, Nullable: true},
 		{Name: "parent_index_number", Type: field.TypeInt32, Nullable: true},
 		{Name: "overview", Type: field.TypeString, Default: ""},
 		{Name: "album_artist", Type: field.TypeString, Default: ""},
@@ -75,13 +76,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "media_items_libraries_items",
-				Columns:    []*schema.Column{MediaItemsColumns[16]},
+				Columns:    []*schema.Column{MediaItemsColumns[17]},
 				RefColumns: []*schema.Column{LibrariesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "media_items_media_items_children",
-				Columns:    []*schema.Column{MediaItemsColumns[17]},
+				Columns:    []*schema.Column{MediaItemsColumns[18]},
 				RefColumns: []*schema.Column{MediaItemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

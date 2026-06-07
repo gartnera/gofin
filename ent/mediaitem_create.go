@@ -147,6 +147,20 @@ func (_c *MediaItemCreate) SetNillableIndexNumber(v *int32) *MediaItemCreate {
 	return _c
 }
 
+// SetIndexNumberEnd sets the "index_number_end" field.
+func (_c *MediaItemCreate) SetIndexNumberEnd(v int32) *MediaItemCreate {
+	_c.mutation.SetIndexNumberEnd(v)
+	return _c
+}
+
+// SetNillableIndexNumberEnd sets the "index_number_end" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableIndexNumberEnd(v *int32) *MediaItemCreate {
+	if v != nil {
+		_c.SetIndexNumberEnd(*v)
+	}
+	return _c
+}
+
 // SetParentIndexNumber sets the "parent_index_number" field.
 func (_c *MediaItemCreate) SetParentIndexNumber(v int32) *MediaItemCreate {
 	_c.mutation.SetParentIndexNumber(v)
@@ -487,6 +501,10 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IndexNumber(); ok {
 		_spec.SetField(mediaitem.FieldIndexNumber, field.TypeInt32, value)
 		_node.IndexNumber = &value
+	}
+	if value, ok := _c.mutation.IndexNumberEnd(); ok {
+		_spec.SetField(mediaitem.FieldIndexNumberEnd, field.TypeInt32, value)
+		_node.IndexNumberEnd = &value
 	}
 	if value, ok := _c.mutation.ParentIndexNumber(); ok {
 		_spec.SetField(mediaitem.FieldParentIndexNumber, field.TypeInt32, value)

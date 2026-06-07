@@ -89,15 +89,15 @@ func init() {
 	// mediaitem.DefaultRunTimeTicks holds the default value on creation for the run_time_ticks field.
 	mediaitem.DefaultRunTimeTicks = mediaitemDescRunTimeTicks.Default.(int64)
 	// mediaitemDescOverview is the schema descriptor for overview field.
-	mediaitemDescOverview := mediaitemFields[12].Descriptor()
+	mediaitemDescOverview := mediaitemFields[13].Descriptor()
 	// mediaitem.DefaultOverview holds the default value on creation for the overview field.
 	mediaitem.DefaultOverview = mediaitemDescOverview.Default.(string)
 	// mediaitemDescAlbumArtist is the schema descriptor for album_artist field.
-	mediaitemDescAlbumArtist := mediaitemFields[13].Descriptor()
+	mediaitemDescAlbumArtist := mediaitemFields[14].Descriptor()
 	// mediaitem.DefaultAlbumArtist holds the default value on creation for the album_artist field.
 	mediaitem.DefaultAlbumArtist = mediaitemDescAlbumArtist.Default.(string)
 	// mediaitemDescImagePath is the schema descriptor for image_path field.
-	mediaitemDescImagePath := mediaitemFields[14].Descriptor()
+	mediaitemDescImagePath := mediaitemFields[15].Descriptor()
 	// mediaitem.DefaultImagePath holds the default value on creation for the image_path field.
 	mediaitem.DefaultImagePath = mediaitemDescImagePath.Default.(string)
 	// mediaitemDescID is the schema descriptor for id field.

@@ -40,6 +40,8 @@ type MediaItem struct {
 	ProductionYear *int32 `json:"production_year,omitempty"`
 	// IndexNumber holds the value of the "index_number" field.
 	IndexNumber *int32 `json:"index_number,omitempty"`
+	// IndexNumberEnd holds the value of the "index_number_end" field.
+	IndexNumberEnd *int32 `json:"index_number_end,omitempty"`
 	// ParentIndexNumber holds the value of the "parent_index_number" field.
 	ParentIndexNumber *int32 `json:"parent_index_number,omitempty"`
 	// Overview holds the value of the "overview" field.
@@ -120,7 +122,7 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case mediaitem.FieldMediaStreams:
 			values[i] = new([]byte)
-		case mediaitem.FieldMtime, mediaitem.FieldSize, mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldParentIndexNumber:
+		case mediaitem.FieldMtime, mediaitem.FieldSize, mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldIndexNumberEnd, mediaitem.FieldParentIndexNumber:
 			values[i] = new(sql.NullInt64)
 		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
 			values[i] = new(sql.NullString)
@@ -212,6 +214,13 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.IndexNumber = new(int32)
 				*_m.IndexNumber = int32(value.Int64)
+			}
+		case mediaitem.FieldIndexNumberEnd:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field index_number_end", values[i])
+			} else if value.Valid {
+				_m.IndexNumberEnd = new(int32)
+				*_m.IndexNumberEnd = int32(value.Int64)
 			}
 		case mediaitem.FieldParentIndexNumber:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -347,6 +356,11 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	if v := _m.IndexNumber; v != nil {
 		builder.WriteString("index_number=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.IndexNumberEnd; v != nil {
+		builder.WriteString("index_number_end=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

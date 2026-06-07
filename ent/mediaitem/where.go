@@ -99,6 +99,11 @@ func IndexNumber(v int32) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldIndexNumber, v))
 }
 
+// IndexNumberEnd applies equality check predicate on the "index_number_end" field. It's identical to IndexNumberEndEQ.
+func IndexNumberEnd(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldIndexNumberEnd, v))
+}
+
 // ParentIndexNumber applies equality check predicate on the "parent_index_number" field. It's identical to ParentIndexNumberEQ.
 func ParentIndexNumber(v int32) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldParentIndexNumber, v))
@@ -617,6 +622,56 @@ func IndexNumberIsNil() predicate.MediaItem {
 // IndexNumberNotNil applies the NotNil predicate on the "index_number" field.
 func IndexNumberNotNil() predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldNotNull(FieldIndexNumber))
+}
+
+// IndexNumberEndEQ applies the EQ predicate on the "index_number_end" field.
+func IndexNumberEndEQ(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndNEQ applies the NEQ predicate on the "index_number_end" field.
+func IndexNumberEndNEQ(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndIn applies the In predicate on the "index_number_end" field.
+func IndexNumberEndIn(vs ...int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldIndexNumberEnd, vs...))
+}
+
+// IndexNumberEndNotIn applies the NotIn predicate on the "index_number_end" field.
+func IndexNumberEndNotIn(vs ...int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldIndexNumberEnd, vs...))
+}
+
+// IndexNumberEndGT applies the GT predicate on the "index_number_end" field.
+func IndexNumberEndGT(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndGTE applies the GTE predicate on the "index_number_end" field.
+func IndexNumberEndGTE(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndLT applies the LT predicate on the "index_number_end" field.
+func IndexNumberEndLT(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndLTE applies the LTE predicate on the "index_number_end" field.
+func IndexNumberEndLTE(v int32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldIndexNumberEnd, v))
+}
+
+// IndexNumberEndIsNil applies the IsNil predicate on the "index_number_end" field.
+func IndexNumberEndIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldIndexNumberEnd))
+}
+
+// IndexNumberEndNotNil applies the NotNil predicate on the "index_number_end" field.
+func IndexNumberEndNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldIndexNumberEnd))
 }
 
 // ParentIndexNumberEQ applies the EQ predicate on the "parent_index_number" field.
