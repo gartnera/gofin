@@ -56,6 +56,16 @@ Minimal Jellyfin-compatible media server in Go.
   largest single directory, not the library size. The cache is only set for the
   duration of a scan (under `mu`); the watcher's single-file `Index` path leaves
   it nil and queries directly.
+  Probing dominates a real-media scan (~40ms/file serially, since each file is an
+  out-of-process ffprobe exec). `walk` processes each directory in chunks and
+  `prefetchProbes` runs the chunk's probes concurrently (a worker pool sized to
+  `runtime.NumCPU()`, overridable via `GOFIN_SCAN_PROBE_WORKERS`) into
+  `scanCache.probeCache`, which `probeFile` then serves during the serial index
+  pass — DB writes and the folder cache stay single-threaded. Files are deduped
+  by resolved path (`filepath.EvalSymlinks`) so content shared via symlinks (e.g.
+  every `gofin sample --real` entry, or a link-deduped library) is probed once
+  and fanned out. On 4 cores a 400-file real scan drops from ~16s to ~4s (or to
+  ~0.1s when the files are symlinks to a few base files).
 - `internal/watch` — `fsnotify` watcher that keeps the index live: new/modified
   files are indexed (debounced) and removals are dropped. Started by `serve`.
 - `internal/probe` — `ffprobe`-backed media probing behind a `Prober`

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -15,6 +17,12 @@ import (
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
+
+// pending is a media file discovered by walk, awaiting indexing.
+type pending struct {
+	path string
+	info os.FileInfo
+}
 
 var videoExts = map[string]bool{
 	".mp4": true, ".mkv": true, ".avi": true, ".mov": true,
@@ -61,9 +69,13 @@ type folderKey struct {
 //     resident memory bounded by the largest single directory rather than by
 //     the library size, so a 500k-item library is no heavier than a 500-item
 //     one.
+//   - probeCache holds the probe results for the chunk of files currently being
+//     indexed, populated concurrently by prefetchProbes (ffprobe is the dominant
+//     cost of a real-media scan, ~40ms/file serially). Bounded to one chunk.
 type scanCache struct {
-	folders map[folderKey]*ent.MediaItem
-	byPath  map[string]*ent.MediaItem
+	folders    map[folderKey]*ent.MediaItem
+	byPath     map[string]*ent.MediaItem
+	probeCache map[string]probe.Result
 }
 
 func folderKeyOf(f *ent.MediaItem) folderKey {
@@ -141,14 +153,102 @@ func New(client *ent.Client, opts ...Option) *Scanner {
 	return s
 }
 
-// probeFile probes a media file, returning empty metadata on failure so a bad
-// or unreadable file never aborts a scan.
+// probeFile returns probe metadata for a file, preferring the result
+// prefetchProbes computed concurrently for the current chunk; absent that
+// (e.g. the watcher's single-file path) it probes inline. Empty metadata is
+// returned on failure so a bad or unreadable file never aborts a scan.
 func (s *Scanner) probeFile(ctx context.Context, path string) probe.Result {
+	if s.cache != nil {
+		if r, ok := s.cache.probeCache[path]; ok {
+			return r
+		}
+	}
+	return s.rawProbe(ctx, path)
+}
+
+func (s *Scanner) rawProbe(ctx context.Context, path string) probe.Result {
 	res, err := s.prober.Probe(ctx, path)
 	if err != nil {
 		return probe.Result{}
 	}
 	return res
+}
+
+// probeWorkers is the concurrency used to prefetch probes. ffprobe is an
+// out-of-process, largely I/O-bound exec per file, so probing across cores
+// turns a serial ~40ms/file scan into a roughly NumCPU-parallel one. Overridable
+// via GOFIN_SCAN_PROBE_WORKERS (also lets benchmarks force serial with 1).
+func probeWorkers() int {
+	if v := os.Getenv("GOFIN_SCAN_PROBE_WORKERS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	if n := runtime.NumCPU(); n > 0 {
+		return n
+	}
+	return 1
+}
+
+// prefetchProbes probes the (changed/new) files of a chunk concurrently and
+// returns their results keyed by path, for probeFile to serve during the serial
+// index pass. Files unchanged on disk are skipped — the index funcs return
+// before probing them anyway.
+//
+// Files are grouped by their resolved path (filepath.EvalSymlinks) so content
+// shared via symlinks — e.g. every entry from `gofin sample --real`, or a
+// library that dedupes identical media with links — is probed once and the
+// result fanned out to all its links, rather than re-running ffprobe per link.
+//
+// Results are accumulated in a local map and only published to the cache after
+// all workers finish, so probeFile (which reads the cache) never races a writer.
+func (s *Scanner) prefetchProbes(ctx context.Context, chunk []pending) map[string]probe.Result {
+	out := make(map[string]probe.Result, len(chunk))
+	groups := map[string][]string{} // resolved target -> link paths sharing it
+	var keys []string
+	for _, f := range chunk {
+		if unchanged(s.cache.byPath[f.path], f.info) {
+			continue
+		}
+		key := f.path
+		if resolved, err := filepath.EvalSymlinks(f.path); err == nil {
+			key = resolved
+		}
+		if _, seen := groups[key]; !seen {
+			keys = append(keys, key)
+		}
+		groups[key] = append(groups[key], f.path)
+	}
+	if len(keys) == 0 {
+		return out
+	}
+	workers := probeWorkers()
+	if workers > len(keys) {
+		workers = len(keys)
+	}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	ch := make(chan string)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for key := range ch {
+				r := s.rawProbe(ctx, key)
+				mu.Lock()
+				for _, p := range groups[key] {
+					out[p] = r
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, key := range keys {
+		ch <- key
+	}
+	close(ch)
+	wg.Wait()
+	return out
 }
 
 // applyNFO overlays metadata parsed from a local NFO file onto an item that has
@@ -332,10 +432,6 @@ func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts m
 	// Separating the two lets us resolve all of this directory's existing rows in
 	// a single batched query (loadDirPaths) instead of one lookup per file, while
 	// keeping only one directory's worth of rows resident at a time.
-	type pending struct {
-		path string
-		info os.FileInfo
-	}
 	var files []pending
 	var subdirs []string
 	for _, e := range entries {
@@ -369,10 +465,28 @@ func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts m
 			return err
 		}
 	}
-	for _, f := range files {
-		if err := fn(ctx, lib, f.path, f.info); err != nil {
-			return fmt.Errorf("index %q: %w", f.path, err)
+	// Process the directory in chunks: probe each chunk's files concurrently
+	// (prefetchProbes), then index the chunk serially (DB writes and the shared
+	// folder cache aren't concurrency-safe). Chunking bounds the probe cache to
+	// one chunk regardless of how many files a single directory holds.
+	const probeChunk = 256
+	for start := 0; start < len(files); start += probeChunk {
+		end := start + probeChunk
+		if end > len(files) {
+			end = len(files)
 		}
+		chunk := files[start:end]
+		if s.cache != nil {
+			s.cache.probeCache = s.prefetchProbes(ctx, chunk)
+		}
+		for _, f := range chunk {
+			if err := fn(ctx, lib, f.path, f.info); err != nil {
+				return fmt.Errorf("index %q: %w", f.path, err)
+			}
+		}
+	}
+	if s.cache != nil {
+		s.cache.probeCache = nil
 	}
 
 	for _, sub := range subdirs {

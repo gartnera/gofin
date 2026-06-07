@@ -87,6 +87,55 @@ func TestScanSkipsUnchangedFiles(t *testing.T) {
 	}
 }
 
+// TestProbeDedupesSharedTargets verifies that files which resolve to the same
+// content via symlinks — the shape `gofin sample --real` produces — are probed
+// once, not once per link. ffprobe is the dominant scan cost, so this turns a
+// huge symlinked library into a handful of probes.
+func TestProbeDedupesSharedTargets(t *testing.T) {
+	root := t.TempDir()
+	movies := filepath.Join(root, "movies")
+	if err := os.MkdirAll(movies, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Two distinct real files; three symlinks each pointing at the first.
+	baseA := filepath.Join(root, "baseA.mp4")
+	baseB := filepath.Join(root, "baseB.mp4")
+	writeFileContent(t, baseA, "aaa")
+	writeFileContent(t, baseB, "bbb")
+	for _, name := range []string{"M1 (2001).mp4", "M2 (2002).mp4", "M3 (2003).mp4"} {
+		if err := os.Symlink(baseA, filepath.Join(movies, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(baseB, filepath.Join(movies, "M4 (2004).mp4")); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	prober := &countingProber{}
+	sc := New(client, WithProber(prober))
+	lib, err := sc.EnsureLibrary(ctx, "Movies", "movies", movies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+	// 4 movies indexed, but only 2 unique targets probed.
+	if got := countKind(t, client, mediaitem.KindMovie); got != 4 {
+		t.Errorf("movies indexed = %d, want 4", got)
+	}
+	if prober.count() != 2 {
+		t.Errorf("probe count = %d, want 2 (one per unique target)", prober.count())
+	}
+}
+
 func TestScanPrunesMissingFiles(t *testing.T) {
 	root := t.TempDir()
 	tv := filepath.Join(root, "tv")
