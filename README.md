@@ -1,0 +1,80 @@
+# gofin
+
+A minimal, Jellyfin-API-compatible media server written in Go. It lets existing
+Jellyfin clients connect, authenticate, browse a library, and **direct play**
+video and audio. It is intentionally small: manual indexing, direct play only
+(no transcoding), and a SQLite-backed catalog.
+
+## Features
+
+- Jellyfin-compatible HTTP API (responses use the model structs from
+  [`github.com/sj14/jellyfin-go`](https://github.com/sj14/jellyfin-go), so field
+  names match real Jellyfin).
+- Username/password auth with **bcrypt** hashing and persisted access tokens.
+- Movies, TV (Series → Season → Episode) and Music (Artist → Album → Track).
+- Direct play with HTTP range support (seeking) via `http.ServeContent`.
+- [ent](https://entgo.io/) + SQLite (CGO `mattn/go-sqlite3`).
+
+## Layout on disk vs. in the API
+
+Each library is a **type-tagged folder** (`movies`, `tvshows`, `music`)
+declared in config. Within a library the on-disk layout is arbitrary: the
+scanner walks every file, infers metadata (filename patterns for video,
+embedded tags for audio), and **constructs** the Jellyfin hierarchy that the
+API exposes.
+
+## Configuration
+
+Copy `gofin.example.yaml` to `gofin.yaml` and edit:
+
+```yaml
+server_name: gofin
+listen: ":8096"
+database: gofin.db
+libraries:
+  - name: Movies
+    type: movies      # movies | tvshows | music
+    path: /media/movies
+```
+
+The config path defaults to `gofin.yaml` (override with `--config` or
+`GOFIN_CONFIG`).
+
+## Usage
+
+```sh
+go build -o gofin ./cmd/gofin
+
+./gofin user add --name demo --password demo --admin   # create a user
+./gofin scan                                            # index libraries
+./gofin serve                                           # run the server
+```
+
+Point a Jellyfin client at `http://<host>:8096`, or exercise it directly:
+
+```sh
+curl http://localhost:8096/System/Info/Public
+```
+
+## Implemented endpoints
+
+`GET /System/Info/Public`, `GET /System/Info`,
+`POST /Users/AuthenticateByName`, `GET /Users`, `GET /Users/Me`,
+`GET /Users/{id}`, `GET /UserViews`, `GET /Items` (with `parentId`,
+`recursive`, `includeItemTypes`), `GET /Items/{id}`,
+`POST /Items/{id}/PlaybackInfo`, `GET /Videos|Audio/{id}/stream`,
+`GET /Items/{id}/Images/{type}`, and `/Sessions/Playing*` reporting (no-op).
+
+## Testing
+
+```sh
+go test ./... -race -cover
+```
+
+Unit tests cover password hashing, the authorization-header parser, filename/tag
+parsing, and the item mapper. Integration tests start an `httptest` server and
+drive it with the real `sj14/jellyfin-go` client to prove wire compatibility,
+including a ranged stream request that asserts `206 Partial Content`.
+
+> Coverage (`-cover`) requires a complete Go toolchain that includes the
+> `covdata` tool.

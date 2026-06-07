@@ -1,0 +1,6 @@
+/gofin
+*.db
+*.db-shm
+*.db-wal
+gofin.yaml
+/dist/

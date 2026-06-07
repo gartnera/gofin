@@ -1,0 +1,15 @@
+# gofin server configuration.
+server_name: gofin
+listen: ":8096"        # Jellyfin's default port
+database: gofin.db      # sqlite database file
+
+libraries:
+  - name: Movies
+    type: movies        # one of: movies, tvshows, music
+    path: /media/movies
+  - name: TV Shows
+    type: tvshows
+    path: /media/tv
+  - name: Music
+    type: music
+    path: /media/music
