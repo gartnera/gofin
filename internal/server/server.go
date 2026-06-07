@@ -159,6 +159,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /library/refresh", s.requireAdmin(s.handleRefreshLibraries))
 	s.mux.HandleFunc("POST /items/{itemId}/refresh", s.requireAdmin(s.handleRefreshItem))
 
+	// Metadata editing (admin only), mirroring Jellyfin's POST /Items/{itemId}.
+	s.mux.HandleFunc("POST /items/{itemId}", s.requireAdmin(s.handleUpdateItem))
+
 	// Items.
 	s.mux.HandleFunc("GET /items", s.requireAuth(s.handleItems))
 	s.mux.HandleFunc("GET /users/{userId}/items", s.requireAuth(s.handleItems))
