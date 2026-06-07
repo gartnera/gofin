@@ -139,6 +139,44 @@ func TestScanMovieNFO(t *testing.T) {
 	}
 }
 
+// TestScanAudioNFO verifies a sidecar "<track>.nfo" sets the audio track's
+// title and overview, mirroring the movie/episode sidecar behaviour.
+func TestScanAudioNFO(t *testing.T) {
+	root := t.TempDir()
+	music := filepath.Join(root, "music")
+	track := filepath.Join(music, "Pink Floyd", "The Wall", "01 - In the Flesh.mp3")
+	writeFile(t, track)
+	writeText(t, filepath.Join(music, "Pink Floyd", "The Wall", "01 - In the Flesh.nfo"),
+		`<musicvideo><title>In the Flesh?</title><plot>Side one opener.</plot></musicvideo>`)
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	sc := New(client, WithProber(probe.Noop{}))
+	lib, err := sc.EnsureLibrary(ctx, "Music", "music", music)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+
+	a, err := client.MediaItem.Query().Where(mediaitem.KindEQ(mediaitem.KindAudio)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Name != "In the Flesh?" {
+		t.Errorf("audio Name = %q (sidecar title should win)", a.Name)
+	}
+	if a.Overview != "Side one opener." {
+		t.Errorf("audio Overview = %q", a.Overview)
+	}
+}
+
 // TestScanSeriesNFO verifies tvshow.nfo enriches the Series folder while the
 // episode sidecar sets the episode title.
 func TestScanSeriesNFO(t *testing.T) {

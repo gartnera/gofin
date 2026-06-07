@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
+	"github.com/gartnera/gofin/internal/db"
 	"github.com/gartnera/gofin/internal/scanner"
 	"github.com/gartnera/gofin/internal/server"
 	"github.com/gartnera/gofin/internal/watch"
@@ -26,6 +28,12 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				return err
 			}
 			defer client.Close()
+
+			// serve owns schema migration so DDL only ever runs from one
+			// process; short-lived commands (user add) open without migrating.
+			if err := db.Migrate(cmd.Context(), client); err != nil {
+				return err
+			}
 
 			// Share one scanner between the HTTP refresh endpoints and the
 			// filesystem watcher so their index mutations stay serialised.
@@ -65,10 +73,10 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 	}
 }
 
-func scanCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
+func migrateCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 	return &cobra.Command{
-		Use:   "scan",
-		Short: "Index all configured libraries",
+		Use:   "migrate",
+		Short: "Create or update the database schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadCfg()
 			if err != nil {
@@ -80,17 +88,10 @@ func scanCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 			}
 			defer client.Close()
 
-			sc := scanner.New(client)
-			for _, libCfg := range cfg.Libraries {
-				lib, err := sc.EnsureLibrary(cmd.Context(), libCfg.Name, libCfg.Type, libCfg.Path)
-				if err != nil {
-					return fmt.Errorf("library %q: %w", libCfg.Name, err)
-				}
-				if err := sc.ScanLibrary(cmd.Context(), lib); err != nil {
-					return fmt.Errorf("scan %q: %w", libCfg.Name, err)
-				}
-				fmt.Printf("scanned %q (%s)\n", libCfg.Name, libCfg.Type)
+			if err := db.Migrate(cmd.Context(), client); err != nil {
+				return err
 			}
+			fmt.Println("schema up to date")
 			return nil
 		},
 	}
@@ -138,6 +139,11 @@ func userAddCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				SetIsAdmin(isAdmin).
 				Save(cmd.Context())
 			if err != nil {
+				// user add never migrates; a missing schema means the database
+				// hasn't been initialised yet.
+				if strings.Contains(err.Error(), "no such table") {
+					return fmt.Errorf("database not initialised: run `gofin migrate` (or `gofin serve`) first")
+				}
 				return fmt.Errorf("create user: %w", err)
 			}
 			fmt.Printf("created user %q (id %s)\n", u.Name, u.ID)

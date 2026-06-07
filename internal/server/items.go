@@ -36,23 +36,25 @@ func withGrandparent(q *ent.MediaItemQuery) {
 	q.WithParent()
 }
 
+// itemTypeKinds maps Jellyfin IncludeItemTypes names to media kinds.
+var itemTypeKinds = map[string]mediaitem.Kind{
+	"Movie":       mediaitem.KindMovie,
+	"Series":      mediaitem.KindSeries,
+	"Season":      mediaitem.KindSeason,
+	"Episode":     mediaitem.KindEpisode,
+	"MusicArtist": mediaitem.KindMusicArtist,
+	"MusicAlbum":  mediaitem.KindMusicAlbum,
+	"Audio":       mediaitem.KindAudio,
+}
+
 // parseKinds converts a comma-separated IncludeItemTypes value into kinds.
 func parseKinds(s string) []mediaitem.Kind {
 	if s == "" {
 		return nil
 	}
-	valid := map[string]mediaitem.Kind{
-		"Movie":       mediaitem.KindMovie,
-		"Series":      mediaitem.KindSeries,
-		"Season":      mediaitem.KindSeason,
-		"Episode":     mediaitem.KindEpisode,
-		"MusicArtist": mediaitem.KindMusicArtist,
-		"MusicAlbum":  mediaitem.KindMusicAlbum,
-		"Audio":       mediaitem.KindAudio,
-	}
 	var kinds []mediaitem.Kind
 	for _, part := range strings.Split(s, ",") {
-		if k, ok := valid[strings.TrimSpace(part)]; ok {
+		if k, ok := itemTypeKinds[strings.TrimSpace(part)]; ok {
 			kinds = append(kinds, k)
 		}
 	}

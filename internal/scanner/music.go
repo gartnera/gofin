@@ -93,6 +93,12 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 		}
 	}
 
+	// A sidecar "<track>.nfo" overrides the title derived from tags/filename.
+	nf := nfo.Track(path)
+	title := meta.Title
+	if nf != nil && nf.Title != "" {
+		title = nf.Title
+	}
 	probed := s.probeFile(ctx, path)
 
 	if existing != nil {
@@ -106,18 +112,21 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 			SetAlbumArtist(meta.Artist).
 			SetParentID(album.ID)
 		if !metaLocked(existing, "Name") {
-			upd = upd.SetName(meta.Title)
+			upd = upd.SetName(title)
 		}
 		if meta.Track != nil && !metaLocked(existing, "IndexNumber") {
 			upd = upd.SetIndexNumber(*meta.Track)
 		}
-		return upd.Exec(ctx)
+		if err := upd.Exec(ctx); err != nil {
+			return err
+		}
+		return s.applyNFO(ctx, existing, nf)
 	}
 
 	create := s.client.MediaItem.Create().
 		SetKind(mediaitem.KindAudio).
-		SetName(meta.Title).
-		SetSortName(sortKey(meta.Title)).
+		SetName(title).
+		SetSortName(sortKey(title)).
 		SetPath(path).
 		SetContainer(containerOf(path)).
 		SetRunTimeTicks(probed.RunTimeTicks).
@@ -130,7 +139,11 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 	if meta.Track != nil {
 		create = create.SetIndexNumber(*meta.Track)
 	}
-	return create.Exec(ctx)
+	item, err := create.Save(ctx)
+	if err != nil {
+		return err
+	}
+	return s.applyNFO(ctx, item, nf)
 }
 
 func firstNonEmpty(vals ...string) string {

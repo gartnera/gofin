@@ -38,7 +38,7 @@ func rootCmd() *cobra.Command {
 	}
 
 	root.AddCommand(serveCmd(loadCfg, openDB))
-	root.AddCommand(scanCmd(loadCfg, openDB))
+	root.AddCommand(migrateCmd(loadCfg, openDB))
 	root.AddCommand(userCmd(loadCfg, openDB))
 	return root
 }

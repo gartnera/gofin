@@ -263,6 +263,11 @@ func Episode(mediaPath string) *Info {
 	return parseIfExists(sidecarPath(mediaPath))
 }
 
+// Track loads metadata from a sidecar "<name>.nfo" beside an audio file.
+func Track(mediaPath string) *Info {
+	return parseIfExists(sidecarPath(mediaPath))
+}
+
 // Series locates and parses a "tvshow.nfo" for the show that contains
 // mediaPath, searching from the file's directory upward to — but not
 // including — libRoot. Stopping below libRoot is the guard that prevents a
