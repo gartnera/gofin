@@ -42,19 +42,23 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
   exit 1
 fi
 
-# Pick a font ffmpeg can use for the drawtext overlay. The overlay is optional;
-# if no font is found we fall back to a plain test pattern.
+# The label overlay needs the drawtext filter (ffmpeg built with libfreetype)
+# AND a usable font file. Many minimal builds (e.g. some Homebrew ffmpeg builds
+# on macOS) omit drawtext, so check for the filter before relying on it. If
+# either is missing we fall back to a plain test pattern.
 FONT=""
-for f in \
-  /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf \
-  /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
-  /usr/share/fonts/TTF/DejaVuSans.ttf \
-  /System/Library/Fonts/Supplemental/Arial.ttf; do
-  if [[ -f "$f" ]]; then
-    FONT="$f"
-    break
-  fi
-done
+if ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '; then
+  for f in \
+    /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf \
+    /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+    /usr/share/fonts/TTF/DejaVuSans.ttf \
+    /System/Library/Fonts/Supplemental/Arial.ttf; do
+    if [[ -f "$f" ]]; then
+      FONT="$f"
+      break
+    fi
+  done
+fi
 
 gen_episode() {
   local series="$1" season="$2" episode="$3" outfile="$4"
@@ -62,25 +66,28 @@ gen_episode() {
   # Give each episode a different base tone so playback is distinguishable.
   local freq=$(( 220 + (season * 100) + (episode * 30) ))
 
-  local label="${series}\nS$(printf '%02d' "$season")E$(printf '%02d' "$episode")"
+  local tag="S$(printf '%02d' "$season")E$(printf '%02d' "$episode")"
   local vf="testsrc=size=${WIDTH}x${HEIGHT}:rate=${FPS}"
   if [[ -n "$FONT" ]]; then
-    vf="${vf},drawtext=fontfile=${FONT}:text='${label}':fontcolor=white:fontsize=48:box=1:boxcolor=black@0.5:boxborderw=12:x=(w-text_w)/2:y=(h-text_h)/2"
+    vf="${vf},drawtext=fontfile=${FONT}:text='${series}\n${tag}':fontcolor=white:fontsize=48:box=1:boxcolor=black@0.5:boxborderw=12:x=(w-text_w)/2:y=(h-text_h)/2"
   fi
 
+  # Also embed the label as the container title so episodes stay identifiable
+  # even when drawtext isn't available and the video is a plain test pattern.
   ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "${vf}" \
     -f lavfi -i "sine=frequency=${freq}:sample_rate=48000" \
     -t "$DURATION" \
     -c:v libx264 -preset veryfast -pix_fmt yuv420p \
     -c:a aac -b:a 128k \
+    -metadata title="${series} ${tag}" \
     "$outfile"
 }
 
 echo "Generating sample TV shows in: ${OUTDIR}"
 echo "  series=${#SERIES[@]} seasons=${SEASONS} episodes/season=${EPISODES}"
 echo "  clip: ${WIDTH}x${HEIGHT} @ ${FPS}fps, ${DURATION}s each"
-[[ -z "$FONT" ]] && echo "  note: no font found; generating plain test pattern (no text overlay)"
+[[ -z "$FONT" ]] && echo "  note: drawtext filter or font unavailable; plain test pattern (label still set as metadata title)"
 
 for series in "${SERIES[@]}"; do
   for ((s = 1; s <= SEASONS; s++)); do
