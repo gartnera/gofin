@@ -2,6 +2,7 @@
 server_name: gofin
 listen: ":8096"        # Jellyfin's default port
 database: gofin.db      # sqlite database file
+# web_root: ./web      # serve the official jellyfin-web bundle at /web/ when set
 
 libraries:
   - name: Movies

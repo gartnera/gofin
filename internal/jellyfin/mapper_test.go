@@ -1,6 +1,7 @@
 package jellyfin
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -111,6 +112,122 @@ func TestUserDataForNil(t *testing.T) {
 	}
 	if ud.GetItemId() != FormatID(id) {
 		t.Errorf("ItemId = %q, want %q", ud.GetItemId(), FormatID(id))
+	}
+}
+
+func TestMapUserIncludesPolicyAndConfiguration(t *testing.T) {
+	u := &ent.User{ID: uuid.New(), Name: "demo", IsAdmin: true}
+	dto := MapUser(u, "srv")
+
+	// The web client dereferences both unconditionally during startup.
+	if !dto.HasPolicy() {
+		t.Fatal("UserDto.Policy missing")
+	}
+	pol := dto.GetPolicy()
+	if !pol.GetIsAdministrator() {
+		t.Error("Policy.IsAdministrator = false, want true for admin user")
+	}
+	if !pol.GetEnableMediaPlayback() {
+		t.Error("Policy.EnableMediaPlayback = false, want true")
+	}
+
+	if !dto.HasConfiguration() {
+		t.Fatal("UserDto.Configuration missing")
+	}
+	cfg := dto.GetConfiguration()
+	if cfg.GetSubtitleMode() != api.SUBTITLEPLAYBACKMODE_DEFAULT {
+		t.Errorf("Configuration.SubtitleMode = %v, want Default", cfg.GetSubtitleMode())
+	}
+}
+
+func TestMapItemAudioFillsAlbumAndArtistFields(t *testing.T) {
+	artist := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindMusicArtist, Name: "Echo Hill"}
+	album := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindMusicAlbum, Name: "First Light"}
+	album.Edges.Parent = artist
+	track := &ent.MediaItem{
+		ID:           uuid.New(),
+		Kind:         mediaitem.KindAudio,
+		Name:         "Sunrise",
+		Path:         "/music/Echo Hill/First Light/01 - Sunrise.opus",
+		Container:    "opus",
+		RunTimeTicks: 300_000,
+		AlbumArtist:  "Echo Hill",
+	}
+	track.Edges.Parent = album
+
+	dto := MapItem(track, "srv", nil)
+
+	if dto.GetAlbum() != "First Light" {
+		t.Errorf("Album = %q, want %q", dto.GetAlbum(), "First Light")
+	}
+	if dto.GetAlbumId() != FormatID(album.ID) {
+		t.Errorf("AlbumId = %q, want %q", dto.GetAlbumId(), FormatID(album.ID))
+	}
+
+	// The album-detail page calls track.ArtistItems.map() and
+	// track.AlbumArtists.map() unconditionally; both must be present.
+	artists := dto.GetArtistItems()
+	if len(artists) != 1 || artists[0].GetName() != "Echo Hill" {
+		t.Fatalf("ArtistItems = %+v, want one entry named Echo Hill", artists)
+	}
+	if artists[0].GetId() != FormatID(artist.ID) {
+		t.Errorf("ArtistItems[0].Id = %q, want %q", artists[0].GetId(), FormatID(artist.ID))
+	}
+	albumArtists := dto.GetAlbumArtists()
+	if len(albumArtists) != 1 || albumArtists[0].GetName() != "Echo Hill" {
+		t.Fatalf("AlbumArtists = %+v, want one entry named Echo Hill", albumArtists)
+	}
+}
+
+func TestMapItemAudioWithoutGrandparentLeavesArtistIdEmpty(t *testing.T) {
+	// When the query didn't eager-load the grandparent the Id will be unset,
+	// but the entries themselves must still be present so the web client's
+	// unconditional .map() succeeds.
+	album := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindMusicAlbum, Name: "First Light"}
+	track := &ent.MediaItem{
+		ID:          uuid.New(),
+		Kind:        mediaitem.KindAudio,
+		Name:        "Sunrise",
+		Path:        "/music/x.opus",
+		AlbumArtist: "Echo Hill",
+	}
+	track.Edges.Parent = album
+
+	dto := MapItem(track, "srv", nil)
+	artists := dto.GetArtistItems()
+	if len(artists) != 1 {
+		t.Fatalf("ArtistItems len = %d, want 1", len(artists))
+	}
+	if artists[0].GetId() != "" {
+		t.Errorf("ArtistItems[0].Id = %q, want empty without grandparent", artists[0].GetId())
+	}
+}
+
+func TestQueryResultAlwaysEmitsItemsArray(t *testing.T) {
+	// The SDK marks Items as omitempty, which would crash the web client's
+	// `response.Items.length` read. QueryResult must defeat that.
+	for name, in := range map[string][]api.BaseItemDto{
+		"nil":   nil,
+		"empty": {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := QueryResult(in, 0, 0)
+			b, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var m map[string]any
+			if err := json.Unmarshal(b, &m); err != nil {
+				t.Fatal(err)
+			}
+			items, ok := m["Items"]
+			if !ok {
+				t.Fatalf("Items key missing from %s: %s", name, b)
+			}
+			if _, ok := items.([]any); !ok {
+				t.Errorf("Items = %v (%T), want []any", items, items)
+			}
+		})
 	}
 }
 

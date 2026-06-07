@@ -20,6 +20,7 @@ type Config struct {
 	ServerName string    `yaml:"server_name"`
 	Listen     string    `yaml:"listen"`
 	Database   string    `yaml:"database"`
+	WebRoot    string    `yaml:"web_root"`
 	Libraries  []Library `yaml:"libraries"`
 }
 

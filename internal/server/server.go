@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/scanner"
@@ -25,6 +27,7 @@ type Server struct {
 	serverID   string
 	scanner    *scanner.Scanner
 	mux        *http.ServeMux
+	webRoot    string
 }
 
 // Option configures a Server.
@@ -35,6 +38,13 @@ type Option func(*Server)
 // constructs its own scanner backed by the same client.
 func WithScanner(sc *scanner.Scanner) Option {
 	return func(s *Server) { s.scanner = sc }
+}
+
+// WithWebRoot enables serving the bundled Jellyfin web client from the given
+// filesystem directory at /web/. When set, requests to / are redirected to
+// /web/index.html so a browser pointed at the server lands on the client.
+func WithWebRoot(dir string) Option {
+	return func(s *Server) { s.webRoot = dir }
 }
 
 // New constructs a Server and registers its routes.
@@ -73,10 +83,22 @@ var corsHandler = cors.New(cors.Options{
 // title-case (/Users/Public), so we canonicalize before routing.
 func normalizePath(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// /web/ serves the bundled static client whose chunk filenames are
+		// case-sensitive (e.g. MaterialIcons-Regular.*); leave those alone.
+		if strings.HasPrefix(r.URL.Path, "/web/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		p := strings.ToLower(r.URL.Path)
+		// Jellyfin clients append the container as a fake extension on stream
+		// URLs (`/videos/{id}/stream.mp4`). Strip it so a single route matches.
+		if i := strings.LastIndex(p, "/stream."); i >= 0 {
+			p = p[:i+len("/stream")]
+		}
 		r2 := r.Clone(r.Context())
-		r2.URL.Path = strings.ToLower(r.URL.Path)
+		r2.URL.Path = p
 		if r.URL.RawPath != "" {
-			r2.URL.RawPath = strings.ToLower(r.URL.RawPath)
+			r2.URL.RawPath = p
 		}
 		next.ServeHTTP(w, r2)
 	})
@@ -84,7 +106,33 @@ func normalizePath(next http.Handler) http.Handler {
 
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	corsHandler.Handler(normalizePath(s.mux)).ServeHTTP(w, r)
+	corsHandler.Handler(normalizePath(accessLog(s.mux))).ServeHTTP(w, r)
+}
+
+// statusRecorder captures the response status so the access log can include it.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+// accessLog logs every non-static request with status and duration. The web
+// client makes a noisy number of asset requests; those are filtered out.
+func accessLog(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/web/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: 200}
+		next.ServeHTTP(rec, r)
+		log.Printf("%d %s %s (%s)", rec.status, r.Method, r.URL.RequestURI(), time.Since(start).Round(time.Millisecond))
+	})
 }
 
 func (s *Server) routes() {
@@ -118,12 +166,27 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /users/{userId}/items/{itemId}", s.requireAuth(s.handleItemByID))
 	s.mux.HandleFunc("GET /useritems/resume", s.requireAuth(s.handleResumeItems))
 	s.mux.HandleFunc("GET /users/{userId}/items/resume", s.requireAuth(s.handleResumeItems))
+	s.mux.HandleFunc("GET /items/latest", s.requireAuth(s.handleLatestItems))
+	s.mux.HandleFunc("GET /users/{userId}/items/latest", s.requireAuth(s.handleLatestItems))
+	s.mux.HandleFunc("GET /shows/nextup", s.requireAuth(s.handleNextUp))
+	s.mux.HandleFunc("GET /shows/{seriesId}/seasons", s.requireAuth(s.handleSeasons))
+	s.mux.HandleFunc("GET /shows/{seriesId}/episodes", s.requireAuth(s.handleEpisodes))
+	s.mux.HandleFunc("GET /items/{itemId}/similar", s.requireAuth(s.handleSimilar))
+	s.mux.HandleFunc("GET /items/{itemId}/thememedia", s.requireAuth(s.handleThemeMedia))
+	s.mux.HandleFunc("GET /livetv/programs", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /livetv/recommendedprograms", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /livetv/channels", s.requireAuth(s.handleEmptyQuery))
+	// Intros and trickplay metadata: gofin has none — return empty results so
+	// the player doesn't bail out before it issues PlaybackInfo.
+	s.mux.HandleFunc("GET /users/{userId}/items/{itemId}/intros", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /items/{itemId}/intros", s.requireAuth(s.handleEmptyQuery))
 
 	// Playback.
 	s.mux.HandleFunc("POST /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
 	s.mux.HandleFunc("GET /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
 
-	// Direct-play streaming.
+	// Direct-play streaming. Path normalization strips any trailing container
+	// extension (e.g. `stream.mp4` -> `stream`) so a single route handles both.
 	s.mux.HandleFunc("GET /videos/{itemId}/stream", s.requireAuth(s.handleStream))
 	s.mux.HandleFunc("HEAD /videos/{itemId}/stream", s.requireAuth(s.handleStream))
 	s.mux.HandleFunc("GET /audio/{itemId}/stream", s.requireAuth(s.handleStream))
@@ -149,6 +212,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /sessions/capabilities/full", s.requireAuth(s.handleNoContent))
 	s.mux.HandleFunc("POST /sessions/logout", s.requireAuth(s.handleLogout))
 	s.mux.HandleFunc("GET /displaypreferences/{displayPreferencesId}", s.requireAuth(s.handleDisplayPreferences))
+	s.mux.HandleFunc("POST /displaypreferences/{displayPreferencesId}", s.requireAuth(s.handleSetDisplayPreferences))
+	s.mux.HandleFunc("GET /system/endpoint", s.requireAuth(s.handleEndpointInfo))
+	s.mux.HandleFunc("GET /playback/bitratetest", s.requireAuth(s.handleBitrateTest))
+
+	// Bundled web client.
+	if s.webRoot != "" {
+		fs := http.FileServer(http.Dir(s.webRoot))
+		s.mux.Handle("GET /web/", http.StripPrefix("/web/", fs))
+		s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/web/", http.StatusFound)
+		})
+	}
 }
 
 // writeJSON serialises v as JSON, relying on the jellyfin-go models'

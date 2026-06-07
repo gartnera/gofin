@@ -29,6 +29,13 @@ func (s *Server) handleUserViews(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, jellyfin.QueryResult(views, len(views), 0))
 }
 
+// withGrandparent eagerly loads two parent levels so the item mapper can fill
+// in fields that depend on the grandparent — namely an Audio track's artist
+// id (track -> album -> artist).
+func withGrandparent(q *ent.MediaItemQuery) {
+	q.WithParent()
+}
+
 // parseKinds converts a comma-separated IncludeItemTypes value into kinds.
 func parseKinds(s string) []mediaitem.Kind {
 	if s == "" {
@@ -123,7 +130,7 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 		query = query.Limit(limit)
 	}
 
-	items, err := query.WithParent().All(r.Context())
+	items, err := query.WithParent(withGrandparent).All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -173,12 +180,66 @@ func (s *Server) playStates(ctx context.Context, u *ent.User, items []*ent.Media
 }
 
 func (s *Server) handleItemByID(w http.ResponseWriter, r *http.Request) {
+	// The web client treats library views as items, so /Items/{id} may target a
+	// Library; resolve that first and fall back to MediaItem.
+	if id, err := jellyfin.ParseID(r.PathValue("itemId")); err == nil {
+		if lib, err := s.client.Library.Get(r.Context(), id); err == nil {
+			writeJSON(w, http.StatusOK, jellyfin.MapLibraryView(lib, s.serverID))
+			return
+		}
+	}
 	it := s.lookupItem(w, r)
 	if it == nil {
 		return
 	}
 	ps := s.playState(r.Context(), userFrom(r.Context()), it.ID)
 	writeJSON(w, http.StatusOK, jellyfin.MapItem(it, s.serverID, ps))
+}
+
+// handleLatestItems returns the most recently added items in a parent library,
+// matching the web home page's "Latest" carousels. Unlike /Items it returns a
+// raw array (no QueryResult wrapper) — that's the Jellyfin contract for this
+// endpoint.
+func (s *Server) handleLatestItems(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
+	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
+	limit := atoiDefault(firstNonEmptyQuery(q, "limit", "Limit"), 20)
+
+	query := s.client.MediaItem.Query()
+	if parentID != "" {
+		id, err := jellyfin.ParseID(parentID)
+		if err != nil {
+			writeJSON(w, http.StatusOK, []api.BaseItemDto{})
+			return
+		}
+		if _, err := s.client.Library.Get(r.Context(), id); err == nil {
+			query = query.Where(mediaitem.HasLibraryWith(library.ID(id)))
+			// Show top-level entries (Series/Movies/Artists), not loose episodes.
+			query = query.Where(mediaitem.Not(mediaitem.HasParent()))
+		} else {
+			query = query.Where(mediaitem.HasParentWith(mediaitem.ID(id)))
+		}
+	}
+	if len(kinds) > 0 {
+		query = query.Where(mediaitem.KindIn(kinds...))
+	}
+	items, err := query.
+		Order(ent.Desc(mediaitem.FieldMtime)).
+		Limit(limit).
+		WithParent(withGrandparent).
+		All(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, s.mapItems(r.Context(), userFrom(r.Context()), items))
+}
+
+// handleNextUp is a stub — gofin doesn't track per-series progress to compute a
+// real Next Up list, so return an empty result so the home page renders.
+func (s *Server) handleNextUp(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, jellyfin.QueryResult(nil, 0, 0))
 }
 
 func (s *Server) handleResumeItems(w http.ResponseWriter, r *http.Request) {
@@ -189,7 +250,7 @@ func (s *Server) handleResumeItems(w http.ResponseWriter, r *http.Request) {
 			playstate.PlayedEQ(false),
 			playstate.PlaybackPositionTicksGT(0),
 		)).
-		WithParent().
+		WithParent(withGrandparent).
 		All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -209,7 +270,7 @@ func (s *Server) lookupItem(w http.ResponseWriter, r *http.Request) *ent.MediaIt
 	}
 	it, err := s.client.MediaItem.Query().
 		Where(mediaitem.ID(id)).
-		WithParent().
+		WithParent(withGrandparent).
 		Only(r.Context())
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
