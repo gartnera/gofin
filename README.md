@@ -93,24 +93,21 @@ including a ranged stream request that asserts `206 Partial Content`.
 
 ### Browser verification (Playwright)
 
-`scripts/pw-crawl.mjs` and `scripts/pw-playback.mjs` drive the **bundled
-Jellyfin web client** against a running gofin instance and report every console
-message, page error, and gofin network failure (4xx/5xx) — useful for catching
-endpoints the client needs that gofin doesn't yet serve. `pw-crawl` clicks
-through each library's tabs (Suggestions / Genres / Collections / …) and plays
-one item per type; `pw-playback` focuses on direct-play of a movie, episode, and
-track.
+The [`e2e/`](e2e/) project drives the **bundled Jellyfin web client** against a
+running gofin instance and reports every console message, page error, and gofin
+network failure (4xx/5xx) — useful for catching endpoints the client needs that
+gofin doesn't yet serve. It's a small modular TypeScript library (shared
+auth/logging/navigation/playback helpers under `e2e/src/lib`) with two
+scenarios: `crawl` (click through each library's tabs and play one item per
+type) and `playback` (focused direct-play of a movie, episode, and track).
 
 ```sh
-# 1. serve gofin with a web_root pointing at an extracted jellyfin-web bundle
-#    (web_root in gofin.yaml), seeded with scripts/gen-sample-library.sh
-# 2. install the driver + a browser
-npm install && npx playwright install chromium
-# 3. run a scenario
-npm run crawl       # or: npm run playback
+# serve gofin with web_root pointed at an extracted jellyfin-web bundle, seeded
+# with scripts/gen-sample-library.sh (see e2e/README.md), then:
+cd e2e
+pnpm install && pnpm install:browser
+pnpm crawl        # or: pnpm playback
 ```
 
-> The scripts pin the browser locale to `en-US`: a host with no `LANG` set makes
-> Chromium report `en-US@posix`, which the web client feeds to `toLocaleString`
-> and crashes on (`RangeError: Invalid language tag`). Real browsers are
-> unaffected.
+See [`e2e/README.md`](e2e/README.md) for details (including the `en-US` locale
+pin that works around a Chromium-on-`LANG`-less-host crash in the web client).
