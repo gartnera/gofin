@@ -89,6 +89,14 @@ func (s *Server) handleSyncPlayList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, []any{})
 }
 
+// handleEmptyArray responds with an empty JSON array — used for endpoints whose
+// Jellyfin contract is a bare array (not a QueryResult), such as
+// /Movies/Recommendations. The web client's library "Suggestions" tab calls it
+// and crashes on a 404; an empty array renders an (empty) suggestions view.
+func (s *Server) handleEmptyArray(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []any{})
+}
+
 // handleLogout revokes the access token presented on the request.
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if token := tokenFromRequest(r); token != "" {

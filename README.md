@@ -90,3 +90,27 @@ including a ranged stream request that asserts `206 Partial Content`.
 
 > Coverage (`-cover`) requires a complete Go toolchain that includes the
 > `covdata` tool.
+
+### Browser verification (Playwright)
+
+`scripts/pw-crawl.mjs` and `scripts/pw-playback.mjs` drive the **bundled
+Jellyfin web client** against a running gofin instance and report every console
+message, page error, and gofin network failure (4xx/5xx) — useful for catching
+endpoints the client needs that gofin doesn't yet serve. `pw-crawl` clicks
+through each library's tabs (Suggestions / Genres / Collections / …) and plays
+one item per type; `pw-playback` focuses on direct-play of a movie, episode, and
+track.
+
+```sh
+# 1. serve gofin with a web_root pointing at an extracted jellyfin-web bundle
+#    (web_root in gofin.yaml), seeded with scripts/gen-sample-library.sh
+# 2. install the driver + a browser
+npm install && npx playwright install chromium
+# 3. run a scenario
+npm run crawl       # or: npm run playback
+```
+
+> The scripts pin the browser locale to `en-US`: a host with no `LANG` set makes
+> Chromium report `en-US@posix`, which the web client feeds to `toLocaleString`
+> and crashes on (`RangeError: Invalid language tag`). Real browsers are
+> unaffected.

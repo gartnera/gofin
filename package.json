@@ -1,0 +1,14 @@
+{
+  "name": "gofin-web-verify",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright scripts that drive the bundled Jellyfin web client against gofin to verify browse + playback and surface fetch errors.",
+  "type": "module",
+  "scripts": {
+    "crawl": "node scripts/pw-crawl.mjs",
+    "playback": "node scripts/pw-playback.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

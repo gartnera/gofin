@@ -6,3 +6,5 @@ gofin.yaml
 /dist/
 /web/
 /sample/
+/node_modules/
+/package-lock.json

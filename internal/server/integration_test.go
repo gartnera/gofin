@@ -623,6 +623,36 @@ func TestAncestorsAndSyncPlayStubs(t *testing.T) {
 	}
 }
 
+// TestLibraryBrowseFacets verifies the per-library tab endpoints the web client
+// requests (Suggestions / Genres / Collections / TV Networks / Artists) return
+// empty results instead of 404. Without these the library tabs fail to render.
+func TestLibraryBrowseFacets(t *testing.T) {
+	env := setupEnv(t)
+
+	// QueryResult-shaped facets: must serialise Items as an array even when empty.
+	for _, path := range []string{
+		"/Genres", "/MusicGenres", "/Studios",
+		"/Artists", "/Artists/AlbumArtists", "/Shows/Upcoming",
+	} {
+		got := getJSON[map[string]any](t, env.srv.URL+path, env.token)
+		if _, ok := got["Items"].([]any); !ok {
+			t.Errorf("GET %s: Items = %v, want []", path, got["Items"])
+		}
+	}
+
+	// /Movies/Recommendations is a bare array (RecommendationDto[]), not a
+	// QueryResult; the Suggestions tab crashes on a 404.
+	resp := authedGET(t, env, "/Movies/Recommendations")
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /Movies/Recommendations status = %d, want 200", resp.StatusCode)
+	}
+	if strings.TrimSpace(string(body)) != "[]" {
+		t.Errorf("GET /Movies/Recommendations body = %q, want []", body)
+	}
+}
+
 func TestStreamWithContainerExtension(t *testing.T) {
 	env := setupEnv(t)
 	client := authedClient(env.srv.URL, env.token)
