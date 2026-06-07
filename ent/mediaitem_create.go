@@ -6,12 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
 	"github.com/gartnera/gofin/ent/playstate"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -186,6 +188,80 @@ func (_c *MediaItemCreate) SetNillableOverview(v *string) *MediaItemCreate {
 	if v != nil {
 		_c.SetOverview(*v)
 	}
+	return _c
+}
+
+// SetTagline sets the "tagline" field.
+func (_c *MediaItemCreate) SetTagline(v string) *MediaItemCreate {
+	_c.mutation.SetTagline(v)
+	return _c
+}
+
+// SetNillableTagline sets the "tagline" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableTagline(v *string) *MediaItemCreate {
+	if v != nil {
+		_c.SetTagline(*v)
+	}
+	return _c
+}
+
+// SetOfficialRating sets the "official_rating" field.
+func (_c *MediaItemCreate) SetOfficialRating(v string) *MediaItemCreate {
+	_c.mutation.SetOfficialRating(v)
+	return _c
+}
+
+// SetNillableOfficialRating sets the "official_rating" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableOfficialRating(v *string) *MediaItemCreate {
+	if v != nil {
+		_c.SetOfficialRating(*v)
+	}
+	return _c
+}
+
+// SetCommunityRating sets the "community_rating" field.
+func (_c *MediaItemCreate) SetCommunityRating(v float32) *MediaItemCreate {
+	_c.mutation.SetCommunityRating(v)
+	return _c
+}
+
+// SetNillableCommunityRating sets the "community_rating" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableCommunityRating(v *float32) *MediaItemCreate {
+	if v != nil {
+		_c.SetCommunityRating(*v)
+	}
+	return _c
+}
+
+// SetPremiereDate sets the "premiere_date" field.
+func (_c *MediaItemCreate) SetPremiereDate(v time.Time) *MediaItemCreate {
+	_c.mutation.SetPremiereDate(v)
+	return _c
+}
+
+// SetNillablePremiereDate sets the "premiere_date" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillablePremiereDate(v *time.Time) *MediaItemCreate {
+	if v != nil {
+		_c.SetPremiereDate(*v)
+	}
+	return _c
+}
+
+// SetGenres sets the "genres" field.
+func (_c *MediaItemCreate) SetGenres(v []string) *MediaItemCreate {
+	_c.mutation.SetGenres(v)
+	return _c
+}
+
+// SetStudios sets the "studios" field.
+func (_c *MediaItemCreate) SetStudios(v []string) *MediaItemCreate {
+	_c.mutation.SetStudios(v)
+	return _c
+}
+
+// SetPeople sets the "people" field.
+func (_c *MediaItemCreate) SetPeople(v []nfo.Person) *MediaItemCreate {
+	_c.mutation.SetPeople(v)
 	return _c
 }
 
@@ -388,6 +464,14 @@ func (_c *MediaItemCreate) defaults() {
 		v := mediaitem.DefaultOverview
 		_c.mutation.SetOverview(v)
 	}
+	if _, ok := _c.mutation.Tagline(); !ok {
+		v := mediaitem.DefaultTagline
+		_c.mutation.SetTagline(v)
+	}
+	if _, ok := _c.mutation.OfficialRating(); !ok {
+		v := mediaitem.DefaultOfficialRating
+		_c.mutation.SetOfficialRating(v)
+	}
 	if _, ok := _c.mutation.AlbumArtist(); !ok {
 		v := mediaitem.DefaultAlbumArtist
 		_c.mutation.SetAlbumArtist(v)
@@ -444,6 +528,12 @@ func (_c *MediaItemCreate) check() error {
 	}
 	if _, ok := _c.mutation.Overview(); !ok {
 		return &ValidationError{Name: "overview", err: errors.New(`ent: missing required field "MediaItem.overview"`)}
+	}
+	if _, ok := _c.mutation.Tagline(); !ok {
+		return &ValidationError{Name: "tagline", err: errors.New(`ent: missing required field "MediaItem.tagline"`)}
+	}
+	if _, ok := _c.mutation.OfficialRating(); !ok {
+		return &ValidationError{Name: "official_rating", err: errors.New(`ent: missing required field "MediaItem.official_rating"`)}
 	}
 	if _, ok := _c.mutation.AlbumArtist(); !ok {
 		return &ValidationError{Name: "album_artist", err: errors.New(`ent: missing required field "MediaItem.album_artist"`)}
@@ -540,6 +630,34 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Overview(); ok {
 		_spec.SetField(mediaitem.FieldOverview, field.TypeString, value)
 		_node.Overview = value
+	}
+	if value, ok := _c.mutation.Tagline(); ok {
+		_spec.SetField(mediaitem.FieldTagline, field.TypeString, value)
+		_node.Tagline = value
+	}
+	if value, ok := _c.mutation.OfficialRating(); ok {
+		_spec.SetField(mediaitem.FieldOfficialRating, field.TypeString, value)
+		_node.OfficialRating = value
+	}
+	if value, ok := _c.mutation.CommunityRating(); ok {
+		_spec.SetField(mediaitem.FieldCommunityRating, field.TypeFloat32, value)
+		_node.CommunityRating = &value
+	}
+	if value, ok := _c.mutation.PremiereDate(); ok {
+		_spec.SetField(mediaitem.FieldPremiereDate, field.TypeTime, value)
+		_node.PremiereDate = &value
+	}
+	if value, ok := _c.mutation.Genres(); ok {
+		_spec.SetField(mediaitem.FieldGenres, field.TypeJSON, value)
+		_node.Genres = value
+	}
+	if value, ok := _c.mutation.Studios(); ok {
+		_spec.SetField(mediaitem.FieldStudios, field.TypeJSON, value)
+		_node.Studios = value
+	}
+	if value, ok := _c.mutation.People(); ok {
+		_spec.SetField(mediaitem.FieldPeople, field.TypeJSON, value)
+		_node.People = value
 	}
 	if value, ok := _c.mutation.AlbumArtist(); ok {
 		_spec.SetField(mediaitem.FieldAlbumArtist, field.TypeString, value)

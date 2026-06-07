@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -15,6 +16,7 @@ import (
 	"github.com/gartnera/gofin/ent/mediaitem"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -284,6 +286,135 @@ func (_u *MediaItemUpdate) SetNillableOverview(v *string) *MediaItemUpdate {
 	if v != nil {
 		_u.SetOverview(*v)
 	}
+	return _u
+}
+
+// SetTagline sets the "tagline" field.
+func (_u *MediaItemUpdate) SetTagline(v string) *MediaItemUpdate {
+	_u.mutation.SetTagline(v)
+	return _u
+}
+
+// SetNillableTagline sets the "tagline" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableTagline(v *string) *MediaItemUpdate {
+	if v != nil {
+		_u.SetTagline(*v)
+	}
+	return _u
+}
+
+// SetOfficialRating sets the "official_rating" field.
+func (_u *MediaItemUpdate) SetOfficialRating(v string) *MediaItemUpdate {
+	_u.mutation.SetOfficialRating(v)
+	return _u
+}
+
+// SetNillableOfficialRating sets the "official_rating" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableOfficialRating(v *string) *MediaItemUpdate {
+	if v != nil {
+		_u.SetOfficialRating(*v)
+	}
+	return _u
+}
+
+// SetCommunityRating sets the "community_rating" field.
+func (_u *MediaItemUpdate) SetCommunityRating(v float32) *MediaItemUpdate {
+	_u.mutation.ResetCommunityRating()
+	_u.mutation.SetCommunityRating(v)
+	return _u
+}
+
+// SetNillableCommunityRating sets the "community_rating" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableCommunityRating(v *float32) *MediaItemUpdate {
+	if v != nil {
+		_u.SetCommunityRating(*v)
+	}
+	return _u
+}
+
+// AddCommunityRating adds value to the "community_rating" field.
+func (_u *MediaItemUpdate) AddCommunityRating(v float32) *MediaItemUpdate {
+	_u.mutation.AddCommunityRating(v)
+	return _u
+}
+
+// ClearCommunityRating clears the value of the "community_rating" field.
+func (_u *MediaItemUpdate) ClearCommunityRating() *MediaItemUpdate {
+	_u.mutation.ClearCommunityRating()
+	return _u
+}
+
+// SetPremiereDate sets the "premiere_date" field.
+func (_u *MediaItemUpdate) SetPremiereDate(v time.Time) *MediaItemUpdate {
+	_u.mutation.SetPremiereDate(v)
+	return _u
+}
+
+// SetNillablePremiereDate sets the "premiere_date" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillablePremiereDate(v *time.Time) *MediaItemUpdate {
+	if v != nil {
+		_u.SetPremiereDate(*v)
+	}
+	return _u
+}
+
+// ClearPremiereDate clears the value of the "premiere_date" field.
+func (_u *MediaItemUpdate) ClearPremiereDate() *MediaItemUpdate {
+	_u.mutation.ClearPremiereDate()
+	return _u
+}
+
+// SetGenres sets the "genres" field.
+func (_u *MediaItemUpdate) SetGenres(v []string) *MediaItemUpdate {
+	_u.mutation.SetGenres(v)
+	return _u
+}
+
+// AppendGenres appends value to the "genres" field.
+func (_u *MediaItemUpdate) AppendGenres(v []string) *MediaItemUpdate {
+	_u.mutation.AppendGenres(v)
+	return _u
+}
+
+// ClearGenres clears the value of the "genres" field.
+func (_u *MediaItemUpdate) ClearGenres() *MediaItemUpdate {
+	_u.mutation.ClearGenres()
+	return _u
+}
+
+// SetStudios sets the "studios" field.
+func (_u *MediaItemUpdate) SetStudios(v []string) *MediaItemUpdate {
+	_u.mutation.SetStudios(v)
+	return _u
+}
+
+// AppendStudios appends value to the "studios" field.
+func (_u *MediaItemUpdate) AppendStudios(v []string) *MediaItemUpdate {
+	_u.mutation.AppendStudios(v)
+	return _u
+}
+
+// ClearStudios clears the value of the "studios" field.
+func (_u *MediaItemUpdate) ClearStudios() *MediaItemUpdate {
+	_u.mutation.ClearStudios()
+	return _u
+}
+
+// SetPeople sets the "people" field.
+func (_u *MediaItemUpdate) SetPeople(v []nfo.Person) *MediaItemUpdate {
+	_u.mutation.SetPeople(v)
+	return _u
+}
+
+// AppendPeople appends value to the "people" field.
+func (_u *MediaItemUpdate) AppendPeople(v []nfo.Person) *MediaItemUpdate {
+	_u.mutation.AppendPeople(v)
+	return _u
+}
+
+// ClearPeople clears the value of the "people" field.
+func (_u *MediaItemUpdate) ClearPeople() *MediaItemUpdate {
+	_u.mutation.ClearPeople()
 	return _u
 }
 
@@ -617,6 +748,60 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Overview(); ok {
 		_spec.SetField(mediaitem.FieldOverview, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Tagline(); ok {
+		_spec.SetField(mediaitem.FieldTagline, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OfficialRating(); ok {
+		_spec.SetField(mediaitem.FieldOfficialRating, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CommunityRating(); ok {
+		_spec.SetField(mediaitem.FieldCommunityRating, field.TypeFloat32, value)
+	}
+	if value, ok := _u.mutation.AddedCommunityRating(); ok {
+		_spec.AddField(mediaitem.FieldCommunityRating, field.TypeFloat32, value)
+	}
+	if _u.mutation.CommunityRatingCleared() {
+		_spec.ClearField(mediaitem.FieldCommunityRating, field.TypeFloat32)
+	}
+	if value, ok := _u.mutation.PremiereDate(); ok {
+		_spec.SetField(mediaitem.FieldPremiereDate, field.TypeTime, value)
+	}
+	if _u.mutation.PremiereDateCleared() {
+		_spec.ClearField(mediaitem.FieldPremiereDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Genres(); ok {
+		_spec.SetField(mediaitem.FieldGenres, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGenres(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldGenres, value)
+		})
+	}
+	if _u.mutation.GenresCleared() {
+		_spec.ClearField(mediaitem.FieldGenres, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Studios(); ok {
+		_spec.SetField(mediaitem.FieldStudios, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedStudios(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldStudios, value)
+		})
+	}
+	if _u.mutation.StudiosCleared() {
+		_spec.ClearField(mediaitem.FieldStudios, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.People(); ok {
+		_spec.SetField(mediaitem.FieldPeople, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPeople(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldPeople, value)
+		})
+	}
+	if _u.mutation.PeopleCleared() {
+		_spec.ClearField(mediaitem.FieldPeople, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.AlbumArtist(); ok {
 		_spec.SetField(mediaitem.FieldAlbumArtist, field.TypeString, value)
@@ -1072,6 +1257,135 @@ func (_u *MediaItemUpdateOne) SetNillableOverview(v *string) *MediaItemUpdateOne
 	return _u
 }
 
+// SetTagline sets the "tagline" field.
+func (_u *MediaItemUpdateOne) SetTagline(v string) *MediaItemUpdateOne {
+	_u.mutation.SetTagline(v)
+	return _u
+}
+
+// SetNillableTagline sets the "tagline" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableTagline(v *string) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetTagline(*v)
+	}
+	return _u
+}
+
+// SetOfficialRating sets the "official_rating" field.
+func (_u *MediaItemUpdateOne) SetOfficialRating(v string) *MediaItemUpdateOne {
+	_u.mutation.SetOfficialRating(v)
+	return _u
+}
+
+// SetNillableOfficialRating sets the "official_rating" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableOfficialRating(v *string) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetOfficialRating(*v)
+	}
+	return _u
+}
+
+// SetCommunityRating sets the "community_rating" field.
+func (_u *MediaItemUpdateOne) SetCommunityRating(v float32) *MediaItemUpdateOne {
+	_u.mutation.ResetCommunityRating()
+	_u.mutation.SetCommunityRating(v)
+	return _u
+}
+
+// SetNillableCommunityRating sets the "community_rating" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableCommunityRating(v *float32) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetCommunityRating(*v)
+	}
+	return _u
+}
+
+// AddCommunityRating adds value to the "community_rating" field.
+func (_u *MediaItemUpdateOne) AddCommunityRating(v float32) *MediaItemUpdateOne {
+	_u.mutation.AddCommunityRating(v)
+	return _u
+}
+
+// ClearCommunityRating clears the value of the "community_rating" field.
+func (_u *MediaItemUpdateOne) ClearCommunityRating() *MediaItemUpdateOne {
+	_u.mutation.ClearCommunityRating()
+	return _u
+}
+
+// SetPremiereDate sets the "premiere_date" field.
+func (_u *MediaItemUpdateOne) SetPremiereDate(v time.Time) *MediaItemUpdateOne {
+	_u.mutation.SetPremiereDate(v)
+	return _u
+}
+
+// SetNillablePremiereDate sets the "premiere_date" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillablePremiereDate(v *time.Time) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetPremiereDate(*v)
+	}
+	return _u
+}
+
+// ClearPremiereDate clears the value of the "premiere_date" field.
+func (_u *MediaItemUpdateOne) ClearPremiereDate() *MediaItemUpdateOne {
+	_u.mutation.ClearPremiereDate()
+	return _u
+}
+
+// SetGenres sets the "genres" field.
+func (_u *MediaItemUpdateOne) SetGenres(v []string) *MediaItemUpdateOne {
+	_u.mutation.SetGenres(v)
+	return _u
+}
+
+// AppendGenres appends value to the "genres" field.
+func (_u *MediaItemUpdateOne) AppendGenres(v []string) *MediaItemUpdateOne {
+	_u.mutation.AppendGenres(v)
+	return _u
+}
+
+// ClearGenres clears the value of the "genres" field.
+func (_u *MediaItemUpdateOne) ClearGenres() *MediaItemUpdateOne {
+	_u.mutation.ClearGenres()
+	return _u
+}
+
+// SetStudios sets the "studios" field.
+func (_u *MediaItemUpdateOne) SetStudios(v []string) *MediaItemUpdateOne {
+	_u.mutation.SetStudios(v)
+	return _u
+}
+
+// AppendStudios appends value to the "studios" field.
+func (_u *MediaItemUpdateOne) AppendStudios(v []string) *MediaItemUpdateOne {
+	_u.mutation.AppendStudios(v)
+	return _u
+}
+
+// ClearStudios clears the value of the "studios" field.
+func (_u *MediaItemUpdateOne) ClearStudios() *MediaItemUpdateOne {
+	_u.mutation.ClearStudios()
+	return _u
+}
+
+// SetPeople sets the "people" field.
+func (_u *MediaItemUpdateOne) SetPeople(v []nfo.Person) *MediaItemUpdateOne {
+	_u.mutation.SetPeople(v)
+	return _u
+}
+
+// AppendPeople appends value to the "people" field.
+func (_u *MediaItemUpdateOne) AppendPeople(v []nfo.Person) *MediaItemUpdateOne {
+	_u.mutation.AppendPeople(v)
+	return _u
+}
+
+// ClearPeople clears the value of the "people" field.
+func (_u *MediaItemUpdateOne) ClearPeople() *MediaItemUpdateOne {
+	_u.mutation.ClearPeople()
+	return _u
+}
+
 // SetAlbumArtist sets the "album_artist" field.
 func (_u *MediaItemUpdateOne) SetAlbumArtist(v string) *MediaItemUpdateOne {
 	_u.mutation.SetAlbumArtist(v)
@@ -1432,6 +1746,60 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	}
 	if value, ok := _u.mutation.Overview(); ok {
 		_spec.SetField(mediaitem.FieldOverview, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Tagline(); ok {
+		_spec.SetField(mediaitem.FieldTagline, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OfficialRating(); ok {
+		_spec.SetField(mediaitem.FieldOfficialRating, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CommunityRating(); ok {
+		_spec.SetField(mediaitem.FieldCommunityRating, field.TypeFloat32, value)
+	}
+	if value, ok := _u.mutation.AddedCommunityRating(); ok {
+		_spec.AddField(mediaitem.FieldCommunityRating, field.TypeFloat32, value)
+	}
+	if _u.mutation.CommunityRatingCleared() {
+		_spec.ClearField(mediaitem.FieldCommunityRating, field.TypeFloat32)
+	}
+	if value, ok := _u.mutation.PremiereDate(); ok {
+		_spec.SetField(mediaitem.FieldPremiereDate, field.TypeTime, value)
+	}
+	if _u.mutation.PremiereDateCleared() {
+		_spec.ClearField(mediaitem.FieldPremiereDate, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Genres(); ok {
+		_spec.SetField(mediaitem.FieldGenres, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGenres(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldGenres, value)
+		})
+	}
+	if _u.mutation.GenresCleared() {
+		_spec.ClearField(mediaitem.FieldGenres, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Studios(); ok {
+		_spec.SetField(mediaitem.FieldStudios, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedStudios(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldStudios, value)
+		})
+	}
+	if _u.mutation.StudiosCleared() {
+		_spec.ClearField(mediaitem.FieldStudios, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.People(); ok {
+		_spec.SetField(mediaitem.FieldPeople, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPeople(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldPeople, value)
+		})
+	}
+	if _u.mutation.PeopleCleared() {
+		_spec.ClearField(mediaitem.FieldPeople, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.AlbumArtist(); ok {
 		_spec.SetField(mediaitem.FieldAlbumArtist, field.TypeString, value)

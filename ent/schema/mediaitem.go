@@ -5,6 +5,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -57,6 +58,24 @@ func (MediaItem) Fields() []ent.Field {
 			Nillable(),
 		field.String("overview").
 			Default(""),
+		// The following fields are populated from local NFO sidecar metadata
+		// (internal/nfo) when present; empty/nil when no NFO supplied them.
+		field.String("tagline").
+			Default(""),
+		field.String("official_rating").
+			Default(""),
+		field.Float32("community_rating").
+			Optional().
+			Nillable(),
+		field.Time("premiere_date").
+			Optional().
+			Nillable(),
+		field.Strings("genres").
+			Optional(),
+		field.Strings("studios").
+			Optional(),
+		field.JSON("people", []nfo.Person{}).
+			Optional(),
 		field.String("album_artist").
 			Default(""),
 		// image_path is an optional poster/cover file on disk.

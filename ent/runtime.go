@@ -92,16 +92,24 @@ func init() {
 	mediaitemDescOverview := mediaitemFields[13].Descriptor()
 	// mediaitem.DefaultOverview holds the default value on creation for the overview field.
 	mediaitem.DefaultOverview = mediaitemDescOverview.Default.(string)
+	// mediaitemDescTagline is the schema descriptor for tagline field.
+	mediaitemDescTagline := mediaitemFields[14].Descriptor()
+	// mediaitem.DefaultTagline holds the default value on creation for the tagline field.
+	mediaitem.DefaultTagline = mediaitemDescTagline.Default.(string)
+	// mediaitemDescOfficialRating is the schema descriptor for official_rating field.
+	mediaitemDescOfficialRating := mediaitemFields[15].Descriptor()
+	// mediaitem.DefaultOfficialRating holds the default value on creation for the official_rating field.
+	mediaitem.DefaultOfficialRating = mediaitemDescOfficialRating.Default.(string)
 	// mediaitemDescAlbumArtist is the schema descriptor for album_artist field.
-	mediaitemDescAlbumArtist := mediaitemFields[14].Descriptor()
+	mediaitemDescAlbumArtist := mediaitemFields[21].Descriptor()
 	// mediaitem.DefaultAlbumArtist holds the default value on creation for the album_artist field.
 	mediaitem.DefaultAlbumArtist = mediaitemDescAlbumArtist.Default.(string)
 	// mediaitemDescImagePath is the schema descriptor for image_path field.
-	mediaitemDescImagePath := mediaitemFields[15].Descriptor()
+	mediaitemDescImagePath := mediaitemFields[22].Descriptor()
 	// mediaitem.DefaultImagePath holds the default value on creation for the image_path field.
 	mediaitem.DefaultImagePath = mediaitemDescImagePath.Default.(string)
 	// mediaitemDescLockData is the schema descriptor for lock_data field.
-	mediaitemDescLockData := mediaitemFields[17].Descriptor()
+	mediaitemDescLockData := mediaitemFields[24].Descriptor()
 	// mediaitem.DefaultLockData holds the default value on creation for the lock_data field.
 	mediaitem.DefaultLockData = mediaitemDescLockData.Default.(bool)
 	// mediaitemDescID is the schema descriptor for id field.

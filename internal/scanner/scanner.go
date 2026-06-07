@@ -11,6 +11,7 @@ import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -68,6 +69,53 @@ func (s *Scanner) probeFile(ctx context.Context, path string) probe.Result {
 		return probe.Result{}
 	}
 	return res
+}
+
+// applyNFO overlays metadata parsed from a local NFO file onto an item that has
+// already been created/updated with its core (filename- and probe-derived)
+// fields. It is a no-op when nf is nil, so callers can pass the result of an
+// nfo lookup directly. Scalar NFO sources are authoritative for the fields they
+// own, so absent values clear any stale metadata from a previous index — except
+// where the user has locked a field (or the whole item), which always wins over
+// the NFO, mirroring how the filename/probe pass treats metaLocked.
+func (s *Scanner) applyNFO(ctx context.Context, item *ent.MediaItem, nf *nfo.Info) error {
+	if nf == nil || item.LockData {
+		return nil
+	}
+	// Field names are Jellyfin MetadataField values; those without an
+	// equivalent (Tagline/CommunityRating/PremiereDate) are governed only by the
+	// whole-item LockData guard above.
+	upd := item.Update()
+	if !metaLocked(item, "Overview") {
+		upd.SetOverview(nf.Overview)
+	}
+	upd.SetTagline(nf.Tagline)
+	if !metaLocked(item, "OfficialRating") {
+		upd.SetOfficialRating(nf.OfficialRating)
+	}
+	if !metaLocked(item, "Genres") {
+		upd.SetGenres(nf.Genres)
+	}
+	if !metaLocked(item, "Studios") {
+		upd.SetStudios(nf.Studios)
+	}
+	if !metaLocked(item, "Cast") {
+		upd.SetPeople(nf.People)
+	}
+	if nf.Year != nil && !metaLocked(item, "ProductionYear") {
+		upd.SetProductionYear(*nf.Year)
+	}
+	if nf.CommunityRating != nil {
+		upd.SetCommunityRating(*nf.CommunityRating)
+	} else {
+		upd.ClearCommunityRating()
+	}
+	if nf.PremiereDate != nil {
+		upd.SetPremiereDate(*nf.PremiereDate)
+	} else {
+		upd.ClearPremiereDate()
+	}
+	return upd.Exec(ctx)
 }
 
 // EnsureLibrary creates or updates a Library row keyed by its path so that

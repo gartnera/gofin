@@ -3,6 +3,7 @@ package jellyfin
 import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 	"github.com/sj14/jellyfin-go/api"
@@ -88,6 +89,28 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 	if it.Overview != "" {
 		dto.SetOverview(it.Overview)
 	}
+	if it.Tagline != "" {
+		dto.SetTaglines([]string{it.Tagline})
+	}
+	if len(it.Genres) > 0 {
+		dto.SetGenres(it.Genres)
+		dto.SetGenreItems(nameGuidPairs(it.Genres))
+	}
+	if len(it.Studios) > 0 {
+		dto.SetStudios(nameGuidPairs(it.Studios))
+	}
+	if len(it.People) > 0 {
+		dto.SetPeople(mapPeople(it.People))
+	}
+	if it.CommunityRating != nil {
+		dto.SetCommunityRating(*it.CommunityRating)
+	}
+	if it.OfficialRating != "" {
+		dto.SetOfficialRating(it.OfficialRating)
+	}
+	if it.PremiereDate != nil {
+		dto.SetPremiereDate(*it.PremiereDate)
+	}
 	if it.ProductionYear != nil {
 		dto.SetProductionYear(*it.ProductionYear)
 	}
@@ -170,6 +193,36 @@ func UserDataFor(itemID uuid.UUID, runtimeTicks int64, ps *ent.PlayState) api.Us
 		ud.SetLastPlayedDate(*ps.LastPlayedDate)
 	}
 	return *ud
+}
+
+// nameGuidPairs wraps plain names (genres, studios) as NameGuidPair values with
+// an empty Id, which the Jellyfin client tolerates when it has no backing row.
+func nameGuidPairs(names []string) []api.NameGuidPair {
+	out := make([]api.NameGuidPair, 0, len(names))
+	for _, n := range names {
+		p := api.NewNameGuidPair()
+		p.SetName(n)
+		out = append(out, *p)
+	}
+	return out
+}
+
+// mapPeople converts stored NFO people into Jellyfin BaseItemPerson values,
+// translating the stored kind ("Actor"/"Director"/"Writer") into a PersonKind.
+func mapPeople(people []nfo.Person) []api.BaseItemPerson {
+	out := make([]api.BaseItemPerson, 0, len(people))
+	for _, p := range people {
+		bp := api.NewBaseItemPerson()
+		bp.SetName(p.Name)
+		if p.Role != "" {
+			bp.SetRole(p.Role)
+		}
+		if kind, err := api.NewPersonKindFromValue(p.Type); err == nil {
+			bp.SetType(*kind)
+		}
+		out = append(out, *bp)
+	}
+	return out
 }
 
 // mapStreams converts stored probe streams into Jellyfin MediaStream values.

@@ -28,6 +28,22 @@ Minimal Jellyfin-compatible media server in Go.
   files are indexed (debounced) and removals are dropped. Started by `serve`.
 - `internal/probe` — `ffprobe`-backed media probing behind a `Prober`
   interface (with `Noop` fallback); JSON parsing is unit-tested separately.
+- `internal/nfo` — parses local Kodi/Jellyfin `.nfo` sidecar metadata
+  (overview, genres, studios, cast/crew, ratings, premiere date) into an `Info`
+  struct (root-agnostic XML, so `<movie>`/`<episodedetails>`/`<tvshow>`/
+  `<season>`/`artist`/`album` all decode). Lookup is layered: a `<name>.nfo`
+  sidecar wins over a generic `movie.nfo`/`tvshow.nfo`/`season.nfo`/`album.nfo`/
+  `artist.nfo`, and generic/parent-directory files are only consulted when the
+  media file lives *below* the library root (`belowRoot` guard) — so a stray
+  `.nfo` sitting directly in a library root is never attached to a bare
+  top-level file. NFO files are never indexed as media themselves (they don't
+  match the audio/video extensions), so the scanner and watcher ignore them;
+  an NFO is read only as a side effect of indexing the media file it describes.
+  The scanner's `applyNFO` overlays the parsed metadata onto the item row after
+  its filename/probe-derived fields are set (folders like Series/Season/Album/
+  Artist are enriched only while still bare). It honours metadata locks
+  (`metaLocked`): a locked field — or a fully locked item — is never overwritten
+  by an NFO, just as it isn't by the filename/probe pass.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
   IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
 - `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;
