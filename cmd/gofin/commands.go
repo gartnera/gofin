@@ -109,10 +109,12 @@ func sampleCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "sample",
 		Short: "Generate a large synthetic media library for benchmarking",
-		Long: "Writes empty placeholder media files with realistic names and\n" +
-			"directory layouts under <dir>/{movies,tv,music}. The files are not\n" +
-			"playable — they exist to exercise scanning and querying at scale.\n" +
-			"For real, direct-playable sample media use scripts/gen-sample-library.sh.",
+		Long: "Writes media files with realistic names and directory layouts under\n" +
+			"<dir>/{movies,tv,music}. By default the files are empty placeholders —\n" +
+			"they exist to exercise scanning and querying at scale, and are not\n" +
+			"playable. With --real, a few base files are encoded once via ffmpeg and\n" +
+			"every entry is symlinked to one, so the whole library direct-plays in a\n" +
+			"browser (requires ffmpeg on PATH).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			res, err := sample.Generate(dir, opts)
 			if err != nil {
@@ -142,6 +144,8 @@ func sampleCmd() *cobra.Command {
 	c.Flags().IntVar(&opts.Artists, "artists", opts.Artists, "number of music artists (0 disables)")
 	c.Flags().IntVar(&opts.AlbumsPerArtist, "albums-per-artist", opts.AlbumsPerArtist, "albums per artist")
 	c.Flags().IntVar(&opts.TracksPerAlbum, "tracks-per-album", opts.TracksPerAlbum, "tracks per album")
+	c.Flags().BoolVar(&opts.Real, "real", false, "generate real, direct-playable media (symlinks to ffmpeg-encoded base files; requires ffmpeg)")
+	c.Flags().IntVar(&opts.RealBase, "real-base", 3, "with --real, number of distinct base files to encode per media type")
 	return c
 }
 

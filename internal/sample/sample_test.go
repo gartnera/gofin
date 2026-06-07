@@ -2,6 +2,8 @@ package sample
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -90,5 +92,65 @@ func TestGeneratedLibraryScans(t *testing.T) {
 	// Verify the directory layout matches what the scanner expects.
 	if _, err := filepath.Glob(filepath.Join(res.TVDir, "*", "Season *", "*.mkv")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGenerateRealRequiresFFmpeg(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err == nil {
+		t.Skip("ffmpeg present; this test covers the missing-ffmpeg error path")
+	}
+	if _, err := Generate(t.TempDir(), Options{Movies: 1, Real: true}); err == nil {
+		t.Fatal("expected an error when --real is used without ffmpeg")
+	}
+}
+
+// TestGenerateRealSymlinks exercises the real-media path end to end. It needs
+// ffmpeg to encode the base files, so it is skipped where ffmpeg is absent.
+func TestGenerateRealSymlinks(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg not on PATH")
+	}
+	dir := t.TempDir()
+	res, err := Generate(dir, Options{Movies: 5, Series: 1, Seasons: 1, EpisodesPerSeason: 3, RealBase: 2, Real: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Every generated movie must be a symlink resolving to a non-empty real
+	// file, and use a browser-playable container.
+	entries, err := os.ReadDir(res.MoviesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, e := range entries {
+		full := filepath.Join(res.MoviesDir, e.Name())
+		li, err := os.Lstat(full)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if li.Mode()&os.ModeSymlink == 0 {
+			t.Errorf("%s is not a symlink", e.Name())
+			continue
+		}
+		if filepath.Ext(e.Name()) != ".webm" {
+			t.Errorf("%s: want .webm video container", e.Name())
+		}
+		si, err := os.Stat(full) // follows the link to the real base file
+		if err != nil {
+			t.Fatalf("resolve %s: %v", e.Name(), err)
+		}
+		if si.Size() == 0 {
+			t.Errorf("%s resolves to an empty file", e.Name())
+		}
+		checked++
+	}
+	if checked != res.Movies {
+		t.Errorf("checked %d movies, want %d", checked, res.Movies)
+	}
+
+	// The real base files live outside the library roots so they aren't indexed.
+	if _, err := os.Stat(filepath.Join(dir, ".base")); err != nil {
+		t.Errorf(".base dir missing: %v", err)
 	}
 }

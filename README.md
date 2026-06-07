@@ -69,10 +69,18 @@ to create tens of thousands of items:
 ./gofin sample --dir ./sample-large --movies 10000 --series 500 --seasons 2 --episodes-per-season 10
 ```
 
-The files are not playable (use `scripts/gen-sample-library.sh` for a handful
-of real, direct-playable files for the Playwright e2e suite); they exist to
-exercise scanning and querying at scale. Point a `movies`/`tvshows` library at
-the generated subdirectories and `serve`.
+By default the files are empty placeholders — they exist to exercise scanning
+and querying at scale and are not playable. Add `--real` to make the whole
+library direct-play in a browser: a few base files are encoded once with ffmpeg
+and every entry is symlinked to one of them (so 10k items cost a handful of
+encodes, not 10k):
+
+```sh
+./gofin sample --dir ./sample-large --movies 10000 --series 500 --real
+```
+
+Point a `movies`/`tvshows`/`music` library at the generated subdirectories and
+`serve`.
 
 Point a Jellyfin client at `http://<host>:8096`, or exercise it directly:
 

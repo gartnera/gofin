@@ -5,11 +5,15 @@ Minimal Jellyfin-compatible media server in Go.
 ## Architecture
 - `cmd/gofin` — cobra CLI: `serve`, `migrate`, `user add`, `sample`.
 - `internal/config` — YAML config (`gofin.yaml`).
-- `internal/sample` — generates large synthetic libraries (empty placeholder
-  files with realistic movie/episode/track names + layouts) for benchmarking and
-  load-testing; backs the `gofin sample` command. Distinct from
-  `scripts/gen-sample-library.sh`, which ffmpeg-encodes a few real, playable
-  files for the e2e suite.
+- `internal/sample` — generates large synthetic libraries (realistic
+  movie/episode/track names + layouts) for benchmarking and load-testing; backs
+  the `gofin sample` command. Default mode writes empty placeholder files (fast,
+  not playable). `--real` encodes a few browser-playable base files once via
+  ffmpeg and symlinks every entry to one of them (a `placer` chooses touch vs
+  symlink), so a 10k-item library direct-plays without 10k encodes — the scanner
+  indexes symlinks normally and ffprobe/ServeContent follow them to the real
+  bytes (see `TestScanFollowsSymlinks`). `scripts/gen-sample-library.sh` remains
+  the way to make a few standalone real files without this package.
 - `ent/` — ent schema + generated code (User, AccessToken, Library, MediaItem).
   Regenerate with `go generate ./ent/...` after editing `ent/schema/*`. MediaItem
   carries composite/edge indexes for the large-library query paths: a

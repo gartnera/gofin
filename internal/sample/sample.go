@@ -1,17 +1,23 @@
 // Package sample generates large synthetic media libraries on disk for
 // benchmarking and load-testing the scanner and HTTP query handlers.
 //
-// Unlike scripts/gen-sample-library.sh — which uses ffmpeg to produce a handful
-// of real, direct-playable files for the e2e suite — this package writes empty
-// placeholder files with realistic names and directory layouts as fast as the
-// filesystem allows, so generating tens of thousands of items is cheap. The
-// files are not playable; their purpose is to exercise indexing and querying at
-// scale.
+// By default it writes empty placeholder files with realistic names and
+// directory layouts as fast as the filesystem allows, so generating tens of
+// thousands of items is cheap. Those files are not playable; they exercise
+// indexing and querying at scale.
+//
+// With Options.Real it instead encodes a small pool of genuinely playable base
+// files once (via ffmpeg) and symlinks every generated entry to one of them, so
+// a huge library is browsable AND every item direct-plays in a browser — at the
+// cost of a handful of encodes, not tens of thousands. (scripts/gen-sample-
+// library.sh remains the way to produce a few standalone real files without
+// this package.)
 package sample
 
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -30,6 +36,13 @@ type Options struct {
 	Artists         int
 	AlbumsPerArtist int
 	TracksPerAlbum  int
+	// Real generates genuinely playable media: a small pool of base files is
+	// encoded once with ffmpeg and every entry is symlinked to one of them.
+	// Requires ffmpeg on PATH.
+	Real bool
+	// RealBase is the number of distinct base files to encode per media type in
+	// Real mode (entries round-robin across them). Defaults to 3.
+	RealBase int
 }
 
 // Result reports what Generate wrote, per library subdirectory.
@@ -52,22 +65,27 @@ func Generate(dir string, opts Options) (Result, error) {
 		MusicDir:  filepath.Join(dir, "music"),
 	}
 
+	p, err := newPlacer(dir, opts)
+	if err != nil {
+		return res, err
+	}
+
 	if opts.Movies > 0 {
-		n, err := generateMovies(res.MoviesDir, opts.Movies)
+		n, err := generateMovies(res.MoviesDir, opts.Movies, p)
 		if err != nil {
 			return res, err
 		}
 		res.Movies = n
 	}
 	if opts.Series > 0 {
-		n, err := generateEpisodes(res.TVDir, opts)
+		n, err := generateEpisodes(res.TVDir, opts, p)
 		if err != nil {
 			return res, err
 		}
 		res.Episodes = n
 	}
 	if opts.Artists > 0 {
-		n, err := generateMusic(res.MusicDir, opts)
+		n, err := generateMusic(res.MusicDir, opts, p)
 		if err != nil {
 			return res, err
 		}
@@ -76,7 +94,7 @@ func Generate(dir string, opts Options) (Result, error) {
 	return res, nil
 }
 
-func generateMovies(dir string, count int) (int, error) {
+func generateMovies(dir string, count int, p *placer) (int, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return 0, err
 	}
@@ -84,15 +102,15 @@ func generateMovies(dir string, count int) (int, error) {
 		// Year cycles through a plausible range so ProductionYear-sorted
 		// queries see a realistic spread.
 		year := 1970 + (i % 55)
-		name := fmt.Sprintf("%s (%d).mkv", movieTitle(i), year)
-		if err := touch(filepath.Join(dir, name)); err != nil {
+		name := fmt.Sprintf("%s (%d)%s", movieTitle(i), year, p.videoExt)
+		if err := p.placeVideo(filepath.Join(dir, name), i); err != nil {
 			return i, err
 		}
 	}
 	return count, nil
 }
 
-func generateEpisodes(dir string, opts Options) (int, error) {
+func generateEpisodes(dir string, opts Options, p *placer) (int, error) {
 	seasons := opts.Seasons
 	if seasons < 1 {
 		seasons = 1
@@ -110,8 +128,8 @@ func generateEpisodes(dir string, opts Options) (int, error) {
 				return total, err
 			}
 			for ep := 1; ep <= eps; ep++ {
-				name := fmt.Sprintf("%s - S%02dE%02d.mkv", series, season, ep)
-				if err := touch(filepath.Join(seasonDir, name)); err != nil {
+				name := fmt.Sprintf("%s - S%02dE%02d%s", series, season, ep, p.videoExt)
+				if err := p.placeVideo(filepath.Join(seasonDir, name), total); err != nil {
 					return total, err
 				}
 				total++
@@ -121,7 +139,7 @@ func generateEpisodes(dir string, opts Options) (int, error) {
 	return total, nil
 }
 
-func generateMusic(dir string, opts Options) (int, error) {
+func generateMusic(dir string, opts Options, p *placer) (int, error) {
 	albums := opts.AlbumsPerArtist
 	if albums < 1 {
 		albums = 1
@@ -140,10 +158,10 @@ func generateMusic(dir string, opts Options) (int, error) {
 				return total, err
 			}
 			for tr := 1; tr <= tracks; tr++ {
-				// No embedded tags (empty file); the scanner falls back to the
-				// Artist/Album/Track path layout, which is what we lay out here.
-				name := fmt.Sprintf("%02d Track %d.mp3", tr, tr)
-				if err := touch(filepath.Join(albumDir, name)); err != nil {
+				// No embedded tags; the scanner falls back to the Artist/Album/
+				// Track path layout, which is what we lay out here.
+				name := fmt.Sprintf("%02d Track %d%s", tr, tr, p.audioExt)
+				if err := p.placeAudio(filepath.Join(albumDir, name), total); err != nil {
 					return total, err
 				}
 				total++
@@ -151,15 +169,6 @@ func generateMusic(dir string, opts Options) (int, error) {
 		}
 	}
 	return total, nil
-}
-
-// touch creates an empty file, creating parent directories as needed.
-func touch(path string) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	return f.Close()
 }
 
 // movieTitle returns a deterministic, mostly-unique title for the i-th movie.
@@ -185,4 +194,122 @@ var adjectives = []string{
 var nouns = []string{
 	"River", "Empire", "Horizon", "Shadow", "Phoenix", "Garden", "Machine",
 	"Voyage", "Legacy", "Mirage", "Harbor", "Summit", "Echo", "Compass",
+}
+
+// placer decides how each generated entry is materialised: an empty touch
+// (placeholder mode) or a symlink to a pre-encoded base file (Real mode).
+type placer struct {
+	videoExt string   // extension the generated filenames use for video
+	audioExt string   // …and for audio
+	videos   []string // absolute paths to base video files (Real mode only)
+	audios   []string // …and base audio files
+}
+
+// newPlacer prepares the materialisation strategy. In Real mode it requires
+// ffmpeg and encodes RealBase playable base files per media type once, under
+// <dir>/.base (outside every library root, so they are never indexed).
+func newPlacer(dir string, opts Options) (*placer, error) {
+	if !opts.Real {
+		// Browser-irrelevant containers are fine for placeholders: nothing reads
+		// the (empty) bytes.
+		return &placer{videoExt: ".mkv", audioExt: ".mp3"}, nil
+	}
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		return nil, fmt.Errorf("--real requires ffmpeg on PATH: %w", err)
+	}
+	n := opts.RealBase
+	if n < 1 {
+		n = 3
+	}
+	baseDir := filepath.Join(dir, ".base")
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+		return nil, err
+	}
+	// Browser-friendly codecs (VP9/Opus in .webm, MP3 audio) so items direct
+	// play in Chromium without transcoding, matching gen-sample-library.sh.
+	p := &placer{videoExt: ".webm", audioExt: ".mp3"}
+	for i := 0; i < n; i++ {
+		freq := 220 + i*110
+		vid := filepath.Join(baseDir, fmt.Sprintf("base%d.webm", i))
+		if err := encodeVideo(vid, freq); err != nil {
+			return nil, err
+		}
+		abs, err := filepath.Abs(vid)
+		if err != nil {
+			return nil, err
+		}
+		p.videos = append(p.videos, abs)
+
+		aud := filepath.Join(baseDir, fmt.Sprintf("base%d.mp3", i))
+		if err := encodeAudio(aud, freq); err != nil {
+			return nil, err
+		}
+		abs, err = filepath.Abs(aud)
+		if err != nil {
+			return nil, err
+		}
+		p.audios = append(p.audios, abs)
+	}
+	return p, nil
+}
+
+func (p *placer) placeVideo(dst string, seq int) error {
+	if len(p.videos) == 0 {
+		return touch(dst)
+	}
+	return symlink(p.videos[seq%len(p.videos)], dst)
+}
+
+func (p *placer) placeAudio(dst string, seq int) error {
+	if len(p.audios) == 0 {
+		return touch(dst)
+	}
+	return symlink(p.audios[seq%len(p.audios)], dst)
+}
+
+// touch creates an empty file.
+func touch(path string) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+// symlink points dst at target, replacing any existing dst so regeneration is
+// idempotent.
+func symlink(target, dst string) error {
+	_ = os.Remove(dst)
+	return os.Symlink(target, dst)
+}
+
+// encodeVideo writes a short VP9/Opus .webm test clip (a test pattern plus a
+// sine tone) — small and fast, but a real, seekable, direct-playable file.
+func encodeVideo(path string, freq int) error {
+	return runFFmpeg(
+		"-f", "lavfi", "-i", "testsrc=size=320x240:rate=15",
+		"-f", "lavfi", "-i", fmt.Sprintf("sine=frequency=%d:sample_rate=48000", freq),
+		"-t", "3",
+		"-c:v", "libvpx-vp9", "-b:v", "200k", "-deadline", "realtime", "-cpu-used", "8", "-pix_fmt", "yuv420p",
+		"-c:a", "libopus", "-b:a", "48k",
+		path,
+	)
+}
+
+// encodeAudio writes a short MP3 sine tone — a real, playable audio file.
+func encodeAudio(path string, freq int) error {
+	return runFFmpeg(
+		"-f", "lavfi", "-i", fmt.Sprintf("sine=frequency=%d:sample_rate=48000:duration=3", freq),
+		"-c:a", "libmp3lame", "-b:a", "96k",
+		path,
+	)
+}
+
+func runFFmpeg(args ...string) error {
+	full := append([]string{"-hide_banner", "-loglevel", "error", "-y"}, args...)
+	cmd := exec.Command("ffmpeg", full...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("ffmpeg %v: %w: %s", args, err, out)
+	}
+	return nil
 }
