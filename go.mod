@@ -14,6 +14,7 @@ require (
 	github.com/sj14/jellyfin-go v0.4.3
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.52.0
+	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -33,6 +34,5 @@ require (
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/validator.v2 v2.0.1 // indirect
 )

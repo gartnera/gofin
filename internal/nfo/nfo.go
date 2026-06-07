@@ -11,11 +11,15 @@
 package nfo
 
 import (
+	"bytes"
 	"encoding/xml"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/htmlindex"
 )
 
 // Person is a cast or crew member parsed from an NFO file. Type holds a
@@ -83,17 +87,32 @@ type rawNFO struct {
 	} `xml:"ratings"`
 }
 
-// Parse reads and decodes a single NFO file.
+// Parse reads and decodes a single NFO file. A non-UTF-8 charset declared in
+// the XML header (older libraries are often Windows-1252/ISO-8859-1) is decoded
+// transparently, matching Kodi/Jellyfin tolerance.
 func Parse(path string) (*Info, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+	dec := xml.NewDecoder(bytes.NewReader(data))
+	dec.CharsetReader = charsetReader
 	var raw rawNFO
-	if err := xml.Unmarshal(data, &raw); err != nil {
+	if err := dec.Decode(&raw); err != nil {
 		return nil, err
 	}
 	return raw.toInfo(), nil
+}
+
+// charsetReader resolves a declared (non-UTF-8) XML encoding label to a decoder
+// that re-encodes its input as UTF-8. encoding/xml invokes this only when the
+// header declares an encoding other than UTF-8.
+func charsetReader(label string, input io.Reader) (io.Reader, error) {
+	enc, err := htmlindex.Get(label)
+	if err != nil {
+		return nil, err
+	}
+	return enc.NewDecoder().Reader(input), nil
 }
 
 // dateLayouts are the formats seen in NFO date fields, tried in order.

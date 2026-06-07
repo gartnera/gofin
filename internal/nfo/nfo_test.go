@@ -112,6 +112,22 @@ func TestParseNestedRatings(t *testing.T) {
 	}
 }
 
+// TestParseLegacyEncoding verifies an NFO declaring a non-UTF-8 charset
+// (common in older Kodi libraries) is decoded rather than rejected.
+func TestParseLegacyEncoding(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "amelie.nfo")
+	// "Amélie" with the é as a single Windows-1252/ISO-8859-1 byte (0xE9).
+	write(t, p, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<movie><title>Am\xe9lie</title></movie>")
+	info, err := Parse(p)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if info.Title != "Amélie" {
+		t.Errorf("Title = %q, want %q", info.Title, "Amélie")
+	}
+}
+
 func TestParseEpisode(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "ep.nfo")
