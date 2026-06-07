@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gartnera/gofin/ent"
@@ -598,6 +599,27 @@ func TestEndpointAndBitrateTestAndDisplayPrefsWrite(t *testing.T) {
 	defer dprResp.Body.Close()
 	if dprResp.StatusCode != http.StatusNoContent {
 		t.Errorf("POST DisplayPreferences status = %d, want 204", dprResp.StatusCode)
+	}
+}
+
+// TestAncestorsAndSyncPlayStubs verifies the client-nicety endpoints the web
+// client polls on the detail page and at startup return an empty list instead
+// of a 404.
+func TestAncestorsAndSyncPlayStubs(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	movieID := firstMovie(t, client)
+
+	for _, path := range []string{"/Items/" + movieID + "/Ancestors", "/SyncPlay/List"} {
+		resp := authedGET(t, env, path)
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200", path, resp.StatusCode)
+		}
+		if strings.TrimSpace(string(body)) != "[]" {
+			t.Errorf("GET %s body = %q, want []", path, body)
+		}
 	}
 }
 

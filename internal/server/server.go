@@ -173,6 +173,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /shows/{seriesId}/episodes", s.requireAuth(s.handleEpisodes))
 	s.mux.HandleFunc("GET /items/{itemId}/similar", s.requireAuth(s.handleSimilar))
 	s.mux.HandleFunc("GET /items/{itemId}/thememedia", s.requireAuth(s.handleThemeMedia))
+	s.mux.HandleFunc("GET /items/{itemId}/ancestors", s.requireAuth(s.handleItemAncestors))
 	s.mux.HandleFunc("GET /livetv/programs", s.requireAuth(s.handleEmptyQuery))
 	s.mux.HandleFunc("GET /livetv/recommendedprograms", s.requireAuth(s.handleEmptyQuery))
 	s.mux.HandleFunc("GET /livetv/channels", s.requireAuth(s.handleEmptyQuery))
@@ -215,6 +216,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /displaypreferences/{displayPreferencesId}", s.requireAuth(s.handleSetDisplayPreferences))
 	s.mux.HandleFunc("GET /system/endpoint", s.requireAuth(s.handleEndpointInfo))
 	s.mux.HandleFunc("GET /playback/bitratetest", s.requireAuth(s.handleBitrateTest))
+	s.mux.HandleFunc("GET /syncplay/list", s.requireAuth(s.handleSyncPlayList))
 
 	// Bundled web client.
 	if s.webRoot != "" {

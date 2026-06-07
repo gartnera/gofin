@@ -76,6 +76,19 @@ func (s *Server) handleBitrateTest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleItemAncestors would return an item's parent chain (used by the web
+// client's detail page for breadcrumbs). gofin doesn't surface a breadcrumb
+// trail, so return an empty list rather than a 404.
+func (s *Server) handleItemAncestors(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []api.BaseItemDto{})
+}
+
+// handleSyncPlayList reports no active SyncPlay groups. gofin doesn't implement
+// SyncPlay; without this the client logs a 404 on startup.
+func (s *Server) handleSyncPlayList(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []any{})
+}
+
 // handleLogout revokes the access token presented on the request.
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if token := tokenFromRequest(r); token != "" {
