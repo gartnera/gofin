@@ -2,7 +2,7 @@ package server_test
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,11 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"database/sql"
-
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
-	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/db"
 	"github.com/gartnera/gofin/internal/jellyfin"
 	"github.com/gartnera/gofin/internal/server"
@@ -51,13 +48,7 @@ func setupBenchEnv(b *testing.B) *benchEnv {
 	}
 	b.Cleanup(func() { client.Close() })
 
-	hash, err := auth.HashPassword(testPassword)
-	if err != nil {
-		b.Fatal(err)
-	}
-	if _, err := client.User.Create().SetName(testUser).SetPasswordHash(hash).SetIsAdmin(true).Save(ctx); err != nil {
-		b.Fatal(err)
-	}
+	seedUser(b, ctx, client)
 
 	env := &benchEnv{}
 	env.movieID = seedMovies(b, ctx, client, &env.moviesID)
@@ -74,28 +65,8 @@ func setupBenchEnv(b *testing.B) *benchEnv {
 	srv := httptest.NewServer(server.New(client, "bench-server"))
 	b.Cleanup(srv.Close)
 	env.srv = srv
-	env.token = env.authenticate(b)
+	env.token = authToken(b, srv.URL)
 	return env
-}
-
-func (e *benchEnv) authenticate(b *testing.B) string {
-	body := strings.NewReader(fmt.Sprintf(`{"Username":%q,"Pw":%q}`, testUser, testPassword))
-	req, _ := http.NewRequest("POST", e.srv.URL+"/Users/AuthenticateByName", body)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", clientHeader)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer resp.Body.Close()
-	var out struct{ AccessToken string }
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		b.Fatal(err)
-	}
-	if out.AccessToken == "" {
-		b.Fatal("empty token")
-	}
-	return out.AccessToken
 }
 
 // get issues an authenticated GET and fully drains the body, returning the

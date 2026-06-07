@@ -103,18 +103,20 @@ func setupEnv(t *testing.T) *testEnv {
 	t.Cleanup(srv.Close)
 
 	env := &testEnv{srv: srv}
-	env.token = env.authenticate(t)
+	env.token = authToken(t, srv.URL)
 	return env
 }
 
-func seedUser(t *testing.T, ctx context.Context, client *ent.Client) {
-	t.Helper()
+// seedUser creates the standard admin test user. Shared by the integration and
+// benchmark envs (hence testing.TB).
+func seedUser(tb testing.TB, ctx context.Context, client *ent.Client) {
+	tb.Helper()
 	hash, err := auth.HashPassword(testPassword)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if _, err := client.User.Create().SetName(testUser).SetPasswordHash(hash).SetIsAdmin(true).Save(ctx); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 
@@ -136,18 +138,21 @@ func authedClient(url, token string) *jfapi.APIClient {
 	return jfapi.NewAPIClient(cfg)
 }
 
-func (e *testEnv) authenticate(t *testing.T) string {
-	t.Helper()
+// authToken authenticates testUser against the public AuthenticateByName
+// endpoint and returns the access token. Shared by the integration and
+// benchmark envs (hence testing.TB).
+func authToken(tb testing.TB, baseURL string) string {
+	tb.Helper()
 	body := jfapi.NewAuthenticateUserByName()
 	body.SetUsername(testUser)
 	body.SetPw(testPassword)
-	res, _, err := anonClient(e.srv.URL).UserAPI.AuthenticateUserByName(context.Background()).
+	res, _, err := anonClient(baseURL).UserAPI.AuthenticateUserByName(context.Background()).
 		AuthenticateUserByName(*body).Execute()
 	if err != nil {
-		t.Fatalf("authenticate: %v", err)
+		tb.Fatalf("authenticate: %v", err)
 	}
 	if res.GetAccessToken() == "" {
-		t.Fatal("empty access token")
+		tb.Fatal("empty access token")
 	}
 	return res.GetAccessToken()
 }
