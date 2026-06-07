@@ -711,6 +711,31 @@ func TestGetItemsByIds(t *testing.T) {
 	}
 }
 
+// TestUnknownIncludeItemTypesReturnsEmpty guards the slow-API fix: the web
+// client requests types gofin doesn't model (MusicVideo, Playlist, …) for
+// carousels it always renders. Those must return an empty result rather than —
+// because no kind filter applied — recursively scanning and serialising the
+// entire library.
+func TestUnknownIncludeItemTypesReturnsEmpty(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	for _, kind := range []jfapi.BaseItemKind{jfapi.BASEITEMKIND_MUSIC_VIDEO, jfapi.BASEITEMKIND_PLAYLIST} {
+		res, _, err := client.ItemsAPI.GetItems(ctx).
+			Recursive(true).
+			IncludeItemTypes([]jfapi.BaseItemKind{kind}).
+			Execute()
+		if err != nil {
+			t.Fatalf("GetItems(%s): %v", kind, err)
+		}
+		if len(res.Items) != 0 || res.GetTotalRecordCount() != 0 {
+			t.Errorf("GetItems(%s) = %d items (total %d), want empty",
+				kind, len(res.Items), res.GetTotalRecordCount())
+		}
+	}
+}
+
 func TestAudioItemExposesAlbumLinks(t *testing.T) {
 	env := setupEnv(t)
 	client := authedClient(env.srv.URL, env.token)

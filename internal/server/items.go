@@ -102,9 +102,21 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
 	recursive := q.Get("recursive") == "true" || q.Get("Recursive") == "true"
-	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
+	includeTypes := firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes")
+	kinds := parseKinds(includeTypes)
 	search := firstNonEmptyQuery(q, "searchTerm", "SearchTerm")
 	ids := parseIDs(firstNonEmptyQuery(q, "ids", "Ids"))
+
+	// The web client requests types gofin doesn't model (MusicVideo, Playlist,
+	// BoxSet, …) for carousels it shows regardless of content. When the caller
+	// asked for specific types and none of them are kinds we store, the answer
+	// is definitively empty — short-circuit. Otherwise the lack of a kind filter
+	// combined with Recursive=true would scan and serialise the entire library
+	// (observed at ~1.5s on a 29k-item library) only to return nothing useful.
+	if includeTypes != "" && len(kinds) == 0 {
+		writeJSON(w, http.StatusOK, jellyfin.QueryResult(nil, 0, 0))
+		return
+	}
 
 	query := s.client.MediaItem.Query()
 

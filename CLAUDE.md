@@ -102,3 +102,41 @@ Minimal Jellyfin-compatible media server in Go.
   re-runs the server benches with the query indexes dropped (A/B for index
   effect). The e2e `crawl` also prints a SLOW API ROUTES report from the real
   web client (`e2e/src/lib/logging.ts`).
+
+## Driving the real web client (finding slow APIs at scale)
+
+Exercising the bundled Jellyfin web client against a large library is how the
+slow-API regressions (e.g. unknown `IncludeItemTypes` triggering a full-library
+scan) get caught. End-to-end recipe:
+
+1. Build jellyfin-web from the latest release, **development (non-minified)**
+   build so console/page errors and the SLOW API report are readable:
+   ```sh
+   tag=$(git ls-remote --tags --refs https://github.com/jellyfin/jellyfin-web.git \
+     | awk -F/ '{print $NF}' | grep -E '^v[0-9.]+$' | sort -V | tail -1)
+   git clone --depth 1 --branch "$tag" https://github.com/jellyfin/jellyfin-web.git /tmp/jellyfin-web
+   cd /tmp/jellyfin-web && npm ci && npm run build:development   # output in dist/
+   ```
+   (Use the dev build, not `build:production`: production is minified and
+   mangles stack traces.)
+2. Generate a large library and point gofin at it with `web_root` set to the
+   `dist/`:
+   ```sh
+   go build -o /tmp/gofin ./cmd/gofin
+   /tmp/gofin sample --dir /tmp/media --movies 10000 --series 500 \
+     --seasons 2 --episodes-per-season 10 --artists 300 --albums-per-artist 3 --tracks-per-album 10
+   # gofin.yaml: web_root: /tmp/jellyfin-web/dist + the three library paths
+   /tmp/gofin --config gofin.yaml migrate
+   /tmp/gofin --config gofin.yaml user add --name demo --password demo --admin
+   /tmp/gofin --config gofin.yaml serve      # scans ~29k items on startup
+   ```
+3. Run the crawl (Chromium launches headless; in this container no
+   `--no-sandbox` is needed). `PLAYWRIGHT_BROWSERS_PATH` is preset:
+   ```sh
+   cd e2e && pnpm install && pnpm install:browser
+   pnpm crawl http://127.0.0.1:8096 demo demo
+   ```
+   The closing **SLOW API ROUTES** section ranks the gofin endpoints the client
+   hit by max/mean latency (ids collapsed to `:id`). Placeholder media from
+   `gofin sample` isn't playable, so "no Play button found" and a few client
+   page errors are expected; the crawl gates only on gofin API failures.

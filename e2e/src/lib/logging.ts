@@ -74,22 +74,24 @@ export class ErrorCollector {
       else if (!this.isAsset(req.url())) bump(this.externalFails, line);
     });
     page.on("response", (resp: Response) => {
-      const url = resp.url();
       const status = resp.status();
-      // Record timing for successful gofin API responses.
-      if (status < 400 && this.isApi(url)) {
-        const t = resp.request().timing();
-        // responseEnd is ms from request start to the last response byte; -1
-        // when the browser couldn't measure it (e.g. served from cache).
-        if (t && t.responseEnd >= 0) {
-          this.recordTiming(`${resp.request().method()} ${routeOf(url)}`, t.responseEnd);
-        }
-      }
       if (status < 400) return;
+      const url = resp.url();
       const line = `${resp.request().method()} ${status} ${pathOf(url)}`;
       if (this.isAsset(url)) bump(this.assetFails, line);
       else if (this.isApi(url)) bump(this.apiFails, line);
       else bump(this.externalFails, line);
+    });
+    // Record per-route timing on requestfinished: the ResourceTiming is only
+    // fully populated once the response body is received (in the `response`
+    // event responseEnd is still -1).
+    page.on("requestfinished", (req: Request) => {
+      const url = req.url();
+      if (!this.isApi(url)) return;
+      const t = req.timing();
+      if (t && t.responseEnd >= 0) {
+        this.recordTiming(`${req.method()} ${routeOf(url)}`, t.responseEnd);
+      }
     });
   }
 
