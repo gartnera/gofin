@@ -166,6 +166,47 @@ func TestScanAdvancedTVShows(t *testing.T) {
 	}
 }
 
+// TestScanFollowsSymlinks guards the assumption behind `gofin sample --real`,
+// which symlinks many library entries to a few real base files: a symlinked
+// media file must be indexed like any other (the scanner reads directory
+// entries, and ffprobe/ServeContent later follow the link to the real bytes).
+func TestScanFollowsSymlinks(t *testing.T) {
+	root := t.TempDir()
+	movies := filepath.Join(root, "movies")
+	if err := os.MkdirAll(movies, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A real base file outside the library root, symlinked to twice inside it.
+	base := filepath.Join(root, "base.mkv")
+	if err := os.WriteFile(base, []byte("real-media-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Inception (2010).mkv", "The Matrix (1999).mkv"} {
+		if err := os.Symlink(base, filepath.Join(movies, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	sc := New(client, WithProber(probe.Noop{}))
+	lib, err := sc.EnsureLibrary(ctx, "Movies", "movies", movies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+	if got := countKind(t, client, mediaitem.KindMovie); got != 2 {
+		t.Errorf("symlinked movies indexed = %d, want 2", got)
+	}
+}
+
 func TestScanStoresProbeMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "movies", "Inception (2010).mp4"))

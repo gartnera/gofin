@@ -8,6 +8,7 @@ import (
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/db"
+	"github.com/gartnera/gofin/internal/sample"
 	"github.com/gartnera/gofin/internal/scanner"
 	"github.com/gartnera/gofin/internal/server"
 	"github.com/gartnera/gofin/internal/watch"
@@ -95,6 +96,57 @@ func migrateCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func sampleCmd() *cobra.Command {
+	opts := sample.Options{
+		Movies:            10000,
+		Series:            500,
+		Seasons:           2,
+		EpisodesPerSeason: 10,
+	}
+	var dir string
+	c := &cobra.Command{
+		Use:   "sample",
+		Short: "Generate a large synthetic media library for benchmarking",
+		Long: "Writes media files with realistic names and directory layouts under\n" +
+			"<dir>/{movies,tv,music}. By default the files are empty placeholders —\n" +
+			"they exist to exercise scanning and querying at scale, and are not\n" +
+			"playable. With --real, a few base files are encoded once via ffmpeg and\n" +
+			"every entry is symlinked to one, so the whole library direct-plays in a\n" +
+			"browser (requires ffmpeg on PATH).",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			res, err := sample.Generate(dir, opts)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("generated under %s: %d movies, %d episodes, %d tracks\n",
+				dir, res.Movies, res.Episodes, res.Tracks)
+			fmt.Println("\nPoint gofin.yaml at the generated folders, e.g.:")
+			fmt.Println("  libraries:")
+			if res.Movies > 0 {
+				fmt.Printf("    - { name: Movies, type: movies, path: %s }\n", res.MoviesDir)
+			}
+			if res.Episodes > 0 {
+				fmt.Printf("    - { name: TV Shows, type: tvshows, path: %s }\n", res.TVDir)
+			}
+			if res.Tracks > 0 {
+				fmt.Printf("    - { name: Music, type: music, path: %s }\n", res.MusicDir)
+			}
+			return nil
+		},
+	}
+	c.Flags().StringVar(&dir, "dir", "./sample-large", "output directory")
+	c.Flags().IntVar(&opts.Movies, "movies", opts.Movies, "number of movies")
+	c.Flags().IntVar(&opts.Series, "series", opts.Series, "number of TV series")
+	c.Flags().IntVar(&opts.Seasons, "seasons", opts.Seasons, "seasons per series")
+	c.Flags().IntVar(&opts.EpisodesPerSeason, "episodes-per-season", opts.EpisodesPerSeason, "episodes per season")
+	c.Flags().IntVar(&opts.Artists, "artists", opts.Artists, "number of music artists (0 disables)")
+	c.Flags().IntVar(&opts.AlbumsPerArtist, "albums-per-artist", opts.AlbumsPerArtist, "albums per artist")
+	c.Flags().IntVar(&opts.TracksPerAlbum, "tracks-per-album", opts.TracksPerAlbum, "tracks per album")
+	c.Flags().BoolVar(&opts.Real, "real", false, "generate real, direct-playable media (symlinks to ffmpeg-encoded base files; requires ffmpeg)")
+	c.Flags().IntVar(&opts.RealBase, "real-base", 3, "with --real, number of distinct base files to encode per media type")
+	return c
 }
 
 func userCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {

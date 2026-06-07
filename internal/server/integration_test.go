@@ -103,18 +103,20 @@ func setupEnv(t *testing.T) *testEnv {
 	t.Cleanup(srv.Close)
 
 	env := &testEnv{srv: srv}
-	env.token = env.authenticate(t)
+	env.token = authToken(t, srv.URL)
 	return env
 }
 
-func seedUser(t *testing.T, ctx context.Context, client *ent.Client) {
-	t.Helper()
+// seedUser creates the standard admin test user. Shared by the integration and
+// benchmark envs (hence testing.TB).
+func seedUser(tb testing.TB, ctx context.Context, client *ent.Client) {
+	tb.Helper()
 	hash, err := auth.HashPassword(testPassword)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if _, err := client.User.Create().SetName(testUser).SetPasswordHash(hash).SetIsAdmin(true).Save(ctx); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 
@@ -136,18 +138,21 @@ func authedClient(url, token string) *jfapi.APIClient {
 	return jfapi.NewAPIClient(cfg)
 }
 
-func (e *testEnv) authenticate(t *testing.T) string {
-	t.Helper()
+// authToken authenticates testUser against the public AuthenticateByName
+// endpoint and returns the access token. Shared by the integration and
+// benchmark envs (hence testing.TB).
+func authToken(tb testing.TB, baseURL string) string {
+	tb.Helper()
 	body := jfapi.NewAuthenticateUserByName()
 	body.SetUsername(testUser)
 	body.SetPw(testPassword)
-	res, _, err := anonClient(e.srv.URL).UserAPI.AuthenticateUserByName(context.Background()).
+	res, _, err := anonClient(baseURL).UserAPI.AuthenticateUserByName(context.Background()).
 		AuthenticateUserByName(*body).Execute()
 	if err != nil {
-		t.Fatalf("authenticate: %v", err)
+		tb.Fatalf("authenticate: %v", err)
 	}
 	if res.GetAccessToken() == "" {
-		t.Fatal("empty access token")
+		tb.Fatal("empty access token")
 	}
 	return res.GetAccessToken()
 }
@@ -708,6 +713,37 @@ func TestGetItemsByIds(t *testing.T) {
 	}
 	if got.GetMediaType() != jfapi.MEDIATYPE_AUDIO {
 		t.Errorf("MediaType = %q, want Audio", got.GetMediaType())
+	}
+}
+
+// TestUnknownIncludeItemTypesReturnsEmpty guards the slow-API fix: the web
+// client requests types gofin doesn't model (MusicVideo, Playlist, …) for
+// carousels it always renders. Those must return an empty result rather than —
+// because no kind filter applied — recursively scanning and serialising the
+// entire library.
+func TestUnknownIncludeItemTypesReturnsEmpty(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	for _, kind := range []jfapi.BaseItemKind{jfapi.BASEITEMKIND_MUSIC_VIDEO, jfapi.BASEITEMKIND_PLAYLIST} {
+		res, _, err := client.ItemsAPI.GetItems(ctx).
+			Recursive(true).
+			IncludeItemTypes([]jfapi.BaseItemKind{kind}).
+			Execute()
+		if err != nil {
+			t.Fatalf("GetItems(%s): %v", kind, err)
+		}
+		if len(res.Items) != 0 || res.GetTotalRecordCount() != 0 {
+			t.Errorf("GetItems(%s) = %d items (total %d), want empty",
+				kind, len(res.Items), res.GetTotalRecordCount())
+		}
+		// The Latest endpoint (a bare array, with a default Limit) must also be
+		// empty for an unmodelled type, not the latest items of every kind.
+		latest := getJSON[[]map[string]any](t, env.srv.URL+"/Users/_/Items/Latest?IncludeItemTypes="+string(kind), env.token)
+		if len(latest) != 0 {
+			t.Errorf("Latest(%s) = %d items, want empty", kind, len(latest))
+		}
 	}
 }
 

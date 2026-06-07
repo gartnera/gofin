@@ -86,6 +86,9 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 		if err := album.Update().SetAlbumArtist(meta.Artist).Exec(ctx); err != nil {
 			return err
 		}
+		// Reflect the write on the (possibly cache-shared) struct so sibling
+		// tracks in this scan don't re-issue the same update.
+		album.AlbumArtist = meta.Artist
 	}
 	if album.Overview == "" {
 		if err := s.applyNFO(ctx, album, nfo.Album(path, lib.Path)); err != nil {

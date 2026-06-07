@@ -12,6 +12,21 @@ const pathOf = (url: string): string => {
   }
 };
 
+// routeOf collapses an API path into a stable route key by replacing the
+// variable id segments (32-char dashless hex or UUIDs, and numeric ids) with
+// ":id", so per-item requests aggregate into one timing bucket.
+const routeOf = (url: string): string =>
+  pathOf(url)
+    .replace(/\/[0-9a-fA-F]{32}(?=\/|$)/g, "/:id")
+    .replace(/\/[0-9a-fA-F-]{36}(?=\/|$)/g, "/:id")
+    .replace(/\/\d+(?=\/|$)/g, "/:id");
+
+interface Timing {
+  count: number;
+  total: number;
+  max: number;
+}
+
 const bump = (map: Map<string, number>, key: string): void => {
   map.set(key, (map.get(key) ?? 0) + 1);
 };
@@ -27,6 +42,9 @@ export class ErrorCollector {
   readonly externalFails = new Map<string, number>();
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
+  // Per-route response timings for successful gofin API calls, so the crawl
+  // surfaces slow endpoints (not just failing ones).
+  readonly apiTimings = new Map<string, Timing>();
 
   constructor(private readonly baseURL: string) {}
 
@@ -64,10 +82,47 @@ export class ErrorCollector {
       else if (this.isApi(url)) bump(this.apiFails, line);
       else bump(this.externalFails, line);
     });
+    // Record per-route timing on requestfinished: the ResourceTiming is only
+    // fully populated once the response body is received (in the `response`
+    // event responseEnd is still -1).
+    page.on("requestfinished", (req: Request) => {
+      const url = req.url();
+      if (!this.isApi(url)) return;
+      const t = req.timing();
+      if (t && t.responseEnd >= 0) {
+        this.recordTiming(`${req.method()} ${routeOf(url)}`, t.responseEnd);
+      }
+    });
   }
 
   noteScriptError(message: string): void {
     this.pageErrors.push(`SCRIPT: ${message}`);
+  }
+
+  private recordTiming(route: string, ms: number): void {
+    const cur = this.apiTimings.get(route) ?? { count: 0, total: 0, max: 0 };
+    cur.count += 1;
+    cur.total += ms;
+    cur.max = Math.max(cur.max, ms);
+    this.apiTimings.set(route, cur);
+  }
+
+  /** Print the slowest gofin API routes the web client exercised, by max and
+   * by mean latency. */
+  reportSlowAPIs(topN = 15): void {
+    if (this.apiTimings.size === 0) return;
+    const rows = [...this.apiTimings.entries()].map(([route, t]) => ({
+      route,
+      count: t.count,
+      avg: t.total / t.count,
+      max: t.max,
+    }));
+    console.log("\n========== SLOW API ROUTES (web client) ==========");
+    console.log("by max latency:");
+    [...rows]
+      .sort((a, b) => b.max - a.max)
+      .slice(0, topN)
+      .forEach((r) => console.log(`  ${r.max.toFixed(0).padStart(6)}ms max  ${r.avg.toFixed(0).padStart(6)}ms avg  x${r.count}  ${r.route}`));
   }
 
   /** Print a human-readable summary and return the hard-failure tallies. */
@@ -91,6 +146,8 @@ export class ErrorCollector {
     uniquePageErrors.forEach((e) => console.log("  - " + e));
 
     if (this.externalFails.size) dump(this.externalFails, "external (informational)");
+
+    this.reportSlowAPIs();
 
     return { apiFailures: this.apiFails.size, pageErrors: uniquePageErrors.length };
   }

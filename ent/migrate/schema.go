@@ -102,6 +102,26 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{MediaItemsColumns[4]},
 			},
+			{
+				Name:    "mediaitem_kind_sort_name_library_items",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[1], MediaItemsColumns[3], MediaItemsColumns[26]},
+			},
+			{
+				Name:    "mediaitem_media_item_children",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[27]},
+			},
+			{
+				Name:    "mediaitem_library_items",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[26]},
+			},
+			{
+				Name:    "mediaitem_mtime_library_items",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[5], MediaItemsColumns[26]},
+			},
 		},
 	}
 	// PlayStatesColumns holds the columns for the "play_states" table.

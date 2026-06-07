@@ -16,7 +16,11 @@ import (
 // `migrate` command) so that DDL only ever runs from a single process. Use
 // ":memory:" or a "file:...mode=memory" DSN for ephemeral databases.
 func Open(ctx context.Context, path string) (*ent.Client, error) {
-	dsn := fmt.Sprintf("file:%s?_fk=1&_busy_timeout=5000", path)
+	// WAL + synchronous=NORMAL keep the per-row inserts a large scan performs
+	// from each paying a full fsync, which is the dominant cost when indexing
+	// tens of thousands of files; WAL also lets the watcher/refresh writes
+	// proceed without blocking concurrent reads from HTTP handlers.
+	dsn := fmt.Sprintf("file:%s?_fk=1&_busy_timeout=5000&_journal_mode=WAL&_synchronous=NORMAL", path)
 	client, err := ent.Open(dialect.SQLite, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite %q: %w", path, err)

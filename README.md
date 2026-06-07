@@ -59,6 +59,29 @@ go build -o gofin ./cmd/gofin
 `serve` also runs migrations on startup, so `migrate` is only needed to
 initialise the database before `user add` on a fresh install.
 
+### Generating a large sample library
+
+For benchmarking and load-testing, `gofin sample` writes a synthetic library
+tree of empty placeholder files with realistic names and layouts — fast enough
+to create tens of thousands of items:
+
+```sh
+./gofin sample --dir ./sample-large --movies 10000 --series 500 --seasons 2 --episodes-per-season 10
+```
+
+By default the files are empty placeholders — they exist to exercise scanning
+and querying at scale and are not playable. Add `--real` to make the whole
+library direct-play in a browser: a few base files are encoded once with ffmpeg
+and every entry is symlinked to one of them (so 10k items cost a handful of
+encodes, not 10k):
+
+```sh
+./gofin sample --dir ./sample-large --movies 10000 --series 500 --real
+```
+
+Point a `movies`/`tvshows`/`music` library at the generated subdirectories and
+`serve`.
+
 Point a Jellyfin client at `http://<host>:8096`, or exercise it directly:
 
 ```sh
@@ -93,6 +116,21 @@ including a ranged stream request that asserts `206 Partial Content`.
 
 > Coverage (`-cover`) requires a complete Go toolchain that includes the
 > `covdata` tool.
+
+### Benchmarks
+
+Large-library benchmarks cover scanning and the hot query paths at 10k movies +
+10k episodes:
+
+```sh
+go test -bench=. -benchtime=20x ./internal/scanner ./internal/server
+```
+
+`internal/scanner` benchmarks cold scans and steady-state rescans of a generated
+library; `internal/server` seeds 10k movies and 10k episodes directly and drives
+the real HTTP handlers (library grids, search, season/episode browsing, latest,
+item-by-id). Set `GOFIN_BENCH_NOINDEX=1` to re-run the server benchmarks with
+the MediaItem query indexes dropped, to quantify their effect.
 
 ### Browser verification (Playwright)
 

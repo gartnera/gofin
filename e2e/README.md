@@ -49,6 +49,15 @@ pnpm crawl http://localhost:8096 demo demo
 Each scenario exits non-zero if it sees a gofin API failure, an uncaught page
 error, or (for `playback`) an item that fails to start.
 
+### Slow API report
+
+Every run ends with a **SLOW API ROUTES** section listing the gofin endpoints
+the web client hit, ranked by max (and mean) response time, with per-item ids
+collapsed to `:id` so requests aggregate by route. Point `web_root` at a large
+library (generate one with `gofin sample` — see the repo README) and crawl to
+find which APIs slow down at scale. The Go benchmarks in
+`internal/server/bench_test.go` cover the same routes under direct load.
+
 > **Locale note:** the browser context is pinned to `en-US`. A host with no
 > `LANG` set makes Chromium report `navigator.language` as `en-US@posix`, which
 > the web client feeds into `toLocaleString` and crashes on (`RangeError:

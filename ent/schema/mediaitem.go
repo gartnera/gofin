@@ -116,5 +116,28 @@ func (MediaItem) Indexes() []ent.Index {
 	return []ent.Index{
 		// path is the dedup lookup key for playable items during scans.
 		index.Fields("path"),
+		// Listing a library's items by kind, sorted by name, is the hottest
+		// query path (the web client's library grids). ent appends the edge FK
+		// after the fields, so the index is (kind, sort_name, library_items):
+		// kind seeks, sort_name supplies the order without a filesort, and the
+		// library scope is a residual filter (cheap, since a library only holds
+		// items of one kind family).
+		index.Fields("kind", "sort_name").
+			Edges("library"),
+		// Folder browsing (Series -> Seasons, Season -> Episodes, Album ->
+		// tracks, and the nested "all episodes of a series" query) filters on the
+		// parent FK, and the prune pass counts children per parent. ent always
+		// orders index fields before edge columns, so a Fields(...).Edges("parent")
+		// composite would bury the parent FK as a trailing column — useless as a
+		// seek key, yet still liable to be chosen by the planner (measurably
+		// slower). An edge-only index leads with the parent FK, which is exactly
+		// what these equality lookups need.
+		index.Edges("parent"),
+		// Likewise an edge-only library index leads with the library FK for the
+		// HasLibraryWith equality scoping used by counts and the Latest query.
+		index.Edges("library"),
+		// "Latest" carousels order a library's items by mtime descending.
+		index.Fields("mtime").
+			Edges("library"),
 	}
 }

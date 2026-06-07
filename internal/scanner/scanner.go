@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -15,6 +17,12 @@ import (
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
+
+// pending is a media file discovered by walk, awaiting indexing.
+type pending struct {
+	path string
+	info os.FileInfo
+}
 
 var videoExts = map[string]bool{
 	".mp4": true, ".mkv": true, ".avi": true, ".mov": true,
@@ -33,6 +41,97 @@ type Scanner struct {
 	// mu serialises index mutations so that a full library scan and the
 	// filesystem watcher cannot race when creating shared folder rows.
 	mu sync.Mutex
+	// cache, when non-nil, accelerates the ScanLibrary currently in progress.
+	// It is only set for the duration of a ScanLibrary call (under mu); the
+	// watcher's single-file Index path leaves it nil and queries directly.
+	cache *scanCache
+}
+
+// folderKey identifies a folder-like item within a library by its kind, name,
+// and parent (uuid.Nil for top-level folders) — the same tuple
+// findOrCreateFolder dedupes on.
+type folderKey struct {
+	kind   mediaitem.Kind
+	name   string
+	parent uuid.UUID
+}
+
+// scanCache accelerates a single ScanLibrary pass without holding the whole
+// library in memory.
+//
+//   - folders is the complete set of folder-like rows (Series/Season/Artist/
+//     Album), loaded once. These are inherently bounded — a library has far
+//     fewer folders than files, and they carry no probe JSON — and must persist
+//     across directories because one series' seasons can live in unrelated
+//     directories, so caching them avoids a lookup-or-create query per file.
+//   - byPath holds existing playable rows for the directory currently being
+//     walked, refreshed per directory by walk via one batched query. This keeps
+//     resident memory bounded by the largest single directory rather than by
+//     the library size, so a 500k-item library is no heavier than a 500-item
+//     one.
+//   - probeCache holds the probe results for the chunk of files currently being
+//     indexed, populated concurrently by prefetchProbes (ffprobe is the dominant
+//     cost of a real-media scan, ~40ms/file serially). Bounded to one chunk.
+type scanCache struct {
+	folders    map[folderKey]*ent.MediaItem
+	byPath     map[string]*ent.MediaItem
+	probeCache map[string]probe.Result
+}
+
+func folderKeyOf(f *ent.MediaItem) folderKey {
+	k := folderKey{kind: f.Kind, name: f.Name}
+	if f.Edges.Parent != nil {
+		k.parent = f.Edges.Parent.ID
+	}
+	return k
+}
+
+// loadFolders snapshots a library's folder rows (the bounded set) keyed by
+// (kind, name, parent). Playable rows are loaded lazily, per directory, in walk.
+func (s *Scanner) loadFolders(ctx context.Context, lib *ent.Library) (*scanCache, error) {
+	c := &scanCache{
+		folders: map[folderKey]*ent.MediaItem{},
+		byPath:  map[string]*ent.MediaItem{},
+	}
+	folders, err := s.client.MediaItem.Query().
+		Where(mediaitem.HasLibraryWith(library.ID(lib.ID)), mediaitem.PathEQ("")).
+		WithParent().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range folders {
+		c.folders[folderKeyOf(f)] = f
+	}
+	return c, nil
+}
+
+// loadDirPaths replaces the cache's byPath map with the existing playable rows
+// for exactly the given file paths, fetched in one query. Called by walk before
+// indexing a directory's files so existingByPath resolves from memory without a
+// per-file round trip, while keeping only one directory resident at a time.
+func (s *Scanner) loadDirPaths(ctx context.Context, paths []string) error {
+	s.cache.byPath = make(map[string]*ent.MediaItem, len(paths))
+	// Look the paths up in batches: a single IN(...) binding one host parameter
+	// per path would blow SQLite's SQLITE_MAX_VARIABLE_NUMBER limit for a large
+	// flat directory (e.g. thousands of movies in one folder).
+	const batch = 500
+	for start := 0; start < len(paths); start += batch {
+		end := start + batch
+		if end > len(paths) {
+			end = len(paths)
+		}
+		existing, err := s.client.MediaItem.Query().
+			Where(mediaitem.PathIn(paths[start:end]...)).
+			All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, it := range existing {
+			s.cache.byPath[it.Path] = it
+		}
+	}
+	return nil
 }
 
 // Option configures a Scanner.
@@ -61,14 +160,85 @@ func New(client *ent.Client, opts ...Option) *Scanner {
 	return s
 }
 
-// probeFile probes a media file, returning empty metadata on failure so a bad
-// or unreadable file never aborts a scan.
+// probeFile returns probe metadata for a file, preferring the result
+// prefetchProbes computed concurrently for the current chunk; absent that
+// (e.g. the watcher's single-file path) it probes inline. Empty metadata is
+// returned on failure so a bad or unreadable file never aborts a scan.
 func (s *Scanner) probeFile(ctx context.Context, path string) probe.Result {
+	if s.cache != nil {
+		if r, ok := s.cache.probeCache[path]; ok {
+			return r
+		}
+	}
+	return s.rawProbe(ctx, path)
+}
+
+func (s *Scanner) rawProbe(ctx context.Context, path string) probe.Result {
 	res, err := s.prober.Probe(ctx, path)
 	if err != nil {
 		return probe.Result{}
 	}
 	return res
+}
+
+// probeWorkers is the concurrency used to prefetch probes. ffprobe is an
+// out-of-process, largely I/O-bound exec per file, so probing across cores
+// turns a serial ~40ms/file scan into a roughly NumCPU-parallel one. Overridable
+// via GOFIN_SCAN_PROBE_WORKERS (also lets benchmarks force serial with 1).
+func probeWorkers() int {
+	if v := os.Getenv("GOFIN_SCAN_PROBE_WORKERS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	if n := runtime.NumCPU(); n > 0 {
+		return n
+	}
+	return 1
+}
+
+// prefetchProbes probes the (changed/new) files of a chunk concurrently and
+// returns their results keyed by path, for probeFile to serve during the serial
+// index pass. Files unchanged on disk are skipped — the index funcs return
+// before probing them anyway. Results are accumulated in a local map and only
+// published to the cache after all workers finish, so probeFile (which reads the
+// cache) never races a writer.
+func (s *Scanner) prefetchProbes(ctx context.Context, chunk []pending) map[string]probe.Result {
+	out := make(map[string]probe.Result, len(chunk))
+	var todo []string
+	for _, f := range chunk {
+		if !unchanged(s.cache.byPath[f.path], f.info) {
+			todo = append(todo, f.path)
+		}
+	}
+	if len(todo) == 0 {
+		return out
+	}
+	workers := probeWorkers()
+	if workers > len(todo) {
+		workers = len(todo)
+	}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	ch := make(chan string)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for p := range ch {
+				r := s.rawProbe(ctx, p)
+				mu.Lock()
+				out[p] = r
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, p := range todo {
+		ch <- p
+	}
+	close(ch)
+	wg.Wait()
+	return out
 }
 
 // applyNFO overlays metadata parsed from a local NFO file onto an item that has
@@ -115,7 +285,29 @@ func (s *Scanner) applyNFO(ctx context.Context, item *ent.MediaItem, nf *nfo.Inf
 	} else {
 		upd.ClearPremiereDate()
 	}
-	return upd.Exec(ctx)
+	if err := upd.Exec(ctx); err != nil {
+		return err
+	}
+	// Keep the in-memory item consistent with what was just persisted. A folder
+	// row reused from the scan cache is enriched once on creation; without this
+	// its child files would each see the stale (bare) struct and re-read the
+	// NFO from disk on every pass.
+	if !metaLocked(item, "Overview") {
+		item.Overview = nf.Overview
+	}
+	if !metaLocked(item, "Genres") {
+		item.Genres = nf.Genres
+	}
+	if !metaLocked(item, "Studios") {
+		item.Studios = nf.Studios
+	}
+	if !metaLocked(item, "Cast") {
+		item.People = nf.People
+	}
+	if nf.Year != nil && !metaLocked(item, "ProductionYear") {
+		item.ProductionYear = nf.Year
+	}
+	return nil
 }
 
 // EnsureLibrary creates or updates a Library row keyed by its path so that
@@ -166,6 +358,12 @@ func (s *Scanner) ScanLibrary(ctx context.Context, lib *ent.Library) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	cache, err := s.loadFolders(ctx, lib)
+	if err != nil {
+		return err
+	}
+	s.cache = cache
+	defer func() { s.cache = nil }()
 	if err := s.walk(ctx, lib, lib.Path, exts, fn, nil); err != nil {
 		return err
 	}
@@ -200,7 +398,9 @@ func (s *Scanner) Index(ctx context.Context, lib *ent.Library, path string) erro
 
 // walk recursively traverses dir, honouring .ignore files, and invokes fn for
 // each file whose extension is in exts. matchers carries the .ignore rules
-// inherited from ancestor directories.
+// inherited from ancestor directories. Symlinked files are followed (probing
+// and streaming resolve to the target), which is how `gofin sample` stands up
+// large synthetic libraries from a few real files.
 func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts map[string]bool, fn indexFunc, matchers []ignoreMatcher) error {
 	m, skipAll, err := loadIgnore(dir)
 	if err != nil {
@@ -220,15 +420,19 @@ func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts m
 	if err != nil {
 		return err
 	}
+	// Index this directory's media files first, then recurse into subdirectories.
+	// Separating the two lets us resolve all of this directory's existing rows in
+	// a single batched query (loadDirPaths) instead of one lookup per file, while
+	// keeping only one directory's worth of rows resident at a time.
+	var files []pending
+	var subdirs []string
 	for _, e := range entries {
 		full := filepath.Join(dir, e.Name())
 		if e.IsDir() {
 			if ignored(matchers, full, true) {
 				continue
 			}
-			if err := s.walk(ctx, lib, full, exts, fn, matchers); err != nil {
-				return err
-			}
+			subdirs = append(subdirs, full)
 			continue
 		}
 		if !exts[strings.ToLower(filepath.Ext(full))] {
@@ -241,8 +445,45 @@ func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts m
 		if err != nil {
 			return err
 		}
-		if err := fn(ctx, lib, full, info); err != nil {
-			return fmt.Errorf("index %q: %w", full, err)
+		files = append(files, pending{full, info})
+	}
+
+	if s.cache != nil {
+		paths := make([]string, len(files))
+		for i, f := range files {
+			paths[i] = f.path
+		}
+		if err := s.loadDirPaths(ctx, paths); err != nil {
+			return err
+		}
+	}
+	// Process the directory in chunks: probe each chunk's files concurrently
+	// (prefetchProbes), then index the chunk serially (DB writes and the shared
+	// folder cache aren't concurrency-safe). Chunking bounds the probe cache to
+	// one chunk regardless of how many files a single directory holds.
+	const probeChunk = 256
+	for start := 0; start < len(files); start += probeChunk {
+		end := start + probeChunk
+		if end > len(files) {
+			end = len(files)
+		}
+		chunk := files[start:end]
+		if s.cache != nil {
+			s.cache.probeCache = s.prefetchProbes(ctx, chunk)
+		}
+		for _, f := range chunk {
+			if err := fn(ctx, lib, f.path, f.info); err != nil {
+				return fmt.Errorf("index %q: %w", f.path, err)
+			}
+		}
+	}
+	if s.cache != nil {
+		s.cache.probeCache = nil
+	}
+
+	for _, sub := range subdirs {
+		if err := s.walk(ctx, lib, sub, exts, fn, matchers); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -288,24 +529,37 @@ func containerOf(path string) string {
 // findOrCreateFolder looks up a folder-like item by (kind, name) within a
 // library and optional parent, creating it if absent.
 func (s *Scanner) findOrCreateFolder(ctx context.Context, lib *ent.Library, kind mediaitem.Kind, name string, parentID *uuid.UUID) (*ent.MediaItem, error) {
-	q := s.client.MediaItem.Query().
-		Where(
-			mediaitem.KindEQ(kind),
-			mediaitem.NameEQ(name),
-			mediaitem.HasLibraryWith(library.ID(lib.ID)),
-		)
-	if parentID == nil {
-		q = q.Where(mediaitem.Not(mediaitem.HasParent()))
-	} else {
-		q = q.Where(mediaitem.HasParentWith(mediaitem.ID(*parentID)))
+	key := folderKey{kind: kind, name: name}
+	if parentID != nil {
+		key.parent = *parentID
 	}
 
-	existing, err := q.Only(ctx)
-	if err == nil {
-		return existing, nil
-	}
-	if !ent.IsNotFound(err) {
-		return nil, err
+	if s.cache != nil {
+		// The cache is a complete snapshot of the library plus every folder
+		// created so far this scan, so a hit is authoritative and a miss means
+		// the folder genuinely doesn't exist — skip the redundant lookup.
+		if f, ok := s.cache.folders[key]; ok {
+			return f, nil
+		}
+	} else {
+		q := s.client.MediaItem.Query().
+			Where(
+				mediaitem.KindEQ(kind),
+				mediaitem.NameEQ(name),
+				mediaitem.HasLibraryWith(library.ID(lib.ID)),
+			)
+		if parentID == nil {
+			q = q.Where(mediaitem.Not(mediaitem.HasParent()))
+		} else {
+			q = q.Where(mediaitem.HasParentWith(mediaitem.ID(*parentID)))
+		}
+		existing, err := q.Only(ctx)
+		if err == nil {
+			return existing, nil
+		}
+		if !ent.IsNotFound(err) {
+			return nil, err
+		}
 	}
 
 	create := s.client.MediaItem.Create().
@@ -316,12 +570,23 @@ func (s *Scanner) findOrCreateFolder(ctx context.Context, lib *ent.Library, kind
 	if parentID != nil {
 		create = create.SetParentID(*parentID)
 	}
-	return create.Save(ctx)
+	item, err := create.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s.cache != nil {
+		s.cache.folders[key] = item
+	}
+	return item, nil
 }
 
 // existingByPath returns the indexed item for a file path, or (nil, nil) if the
 // file has not been indexed yet.
 func (s *Scanner) existingByPath(ctx context.Context, path string) (*ent.MediaItem, error) {
+	if s.cache != nil {
+		// nil map value (absent) correctly reports "not indexed yet".
+		return s.cache.byPath[path], nil
+	}
 	it, err := s.client.MediaItem.Query().Where(mediaitem.PathEQ(path)).Only(ctx)
 	if ent.IsNotFound(err) {
 		return nil, nil

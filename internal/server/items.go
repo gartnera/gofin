@@ -61,6 +61,17 @@ func parseKinds(s string) []mediaitem.Kind {
 	return kinds
 }
 
+// parseKindFilter parses IncludeItemTypes into kinds and reports whether the
+// caller named types but none map to a kind gofin stores. In that case the
+// result is definitively empty and the handler must short-circuit: leaving the
+// query unfiltered would, with Recursive=true, scan and serialise the entire
+// library (the web client requests types like MusicVideo/Playlist for carousels
+// it always renders). empty is false when no types were requested at all.
+func parseKindFilter(raw string) (kinds []mediaitem.Kind, empty bool) {
+	kinds = parseKinds(raw)
+	return kinds, raw != "" && len(kinds) == 0
+}
+
 // parseIDs converts a comma-separated list of dashless-hex item ids into UUIDs,
 // silently dropping any that don't parse.
 func parseIDs(s string) []uuid.UUID {
@@ -102,9 +113,14 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
 	recursive := q.Get("recursive") == "true" || q.Get("Recursive") == "true"
-	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
+	kinds, emptyKinds := parseKindFilter(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
 	search := firstNonEmptyQuery(q, "searchTerm", "SearchTerm")
 	ids := parseIDs(firstNonEmptyQuery(q, "ids", "Ids"))
+
+	if emptyKinds {
+		writeJSON(w, http.StatusOK, jellyfin.QueryResult(nil, 0, 0))
+		return
+	}
 
 	query := s.client.MediaItem.Query()
 
@@ -231,8 +247,15 @@ func (s *Server) handleItemByID(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLatestItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	parentID := firstNonEmptyQuery(q, "parentId", "ParentId")
-	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
+	kinds, emptyKinds := parseKindFilter(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
 	limit := atoiDefault(firstNonEmptyQuery(q, "limit", "Limit"), 20)
+
+	// An unmodelled type (MusicVideo, …) matches nothing; return empty rather
+	// than the latest items of every kind (this endpoint returns a raw array).
+	if emptyKinds {
+		writeJSON(w, http.StatusOK, []api.BaseItemDto{})
+		return
+	}
 
 	query := s.client.MediaItem.Query()
 	if parentID != "" {

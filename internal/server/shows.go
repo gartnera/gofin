@@ -51,10 +51,18 @@ func (s *Server) handleEpisodes(w http.ResponseWriter, r *http.Request) {
 			predicates = append(predicates, mediaitem.HasParentWith(mediaitem.ID(id)))
 		}
 	} else {
-		// All episodes under the series: parent (Season) has parent (Series id).
-		predicates = append(predicates, mediaitem.HasParentWith(
-			mediaitem.HasParentWith(mediaitem.ID(seriesID)),
-		))
+		// All episodes under the series. Rather than a doubly-nested
+		// HasParentWith (episode -> season -> series), which SQLite plans poorly
+		// at scale, resolve the season ids first and filter episodes by parent in
+		// that set — a single-level parent lookup the (parent) index serves well.
+		seasonIDs, err := s.client.MediaItem.Query().
+			Where(mediaitem.KindEQ(mediaitem.KindSeason), mediaitem.HasParentWith(mediaitem.ID(seriesID))).
+			IDs(r.Context())
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		predicates = append(predicates, mediaitem.HasParentWith(mediaitem.IDIn(seasonIDs...)))
 	}
 
 	items, err := s.client.MediaItem.Query().
