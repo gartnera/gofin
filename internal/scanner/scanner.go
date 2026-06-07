@@ -193,38 +193,23 @@ func probeWorkers() int {
 // prefetchProbes probes the (changed/new) files of a chunk concurrently and
 // returns their results keyed by path, for probeFile to serve during the serial
 // index pass. Files unchanged on disk are skipped — the index funcs return
-// before probing them anyway.
-//
-// Files are grouped by their resolved path (filepath.EvalSymlinks) so content
-// shared via symlinks — e.g. every entry from `gofin sample --real`, or a
-// library that dedupes identical media with links — is probed once and the
-// result fanned out to all its links, rather than re-running ffprobe per link.
-//
-// Results are accumulated in a local map and only published to the cache after
-// all workers finish, so probeFile (which reads the cache) never races a writer.
+// before probing them anyway. Results are accumulated in a local map and only
+// published to the cache after all workers finish, so probeFile (which reads the
+// cache) never races a writer.
 func (s *Scanner) prefetchProbes(ctx context.Context, chunk []pending) map[string]probe.Result {
 	out := make(map[string]probe.Result, len(chunk))
-	groups := map[string][]string{} // resolved target -> link paths sharing it
-	var keys []string
+	var todo []string
 	for _, f := range chunk {
-		if unchanged(s.cache.byPath[f.path], f.info) {
-			continue
+		if !unchanged(s.cache.byPath[f.path], f.info) {
+			todo = append(todo, f.path)
 		}
-		key := f.path
-		if resolved, err := filepath.EvalSymlinks(f.path); err == nil {
-			key = resolved
-		}
-		if _, seen := groups[key]; !seen {
-			keys = append(keys, key)
-		}
-		groups[key] = append(groups[key], f.path)
 	}
-	if len(keys) == 0 {
+	if len(todo) == 0 {
 		return out
 	}
 	workers := probeWorkers()
-	if workers > len(keys) {
-		workers = len(keys)
+	if workers > len(todo) {
+		workers = len(todo)
 	}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -233,18 +218,16 @@ func (s *Scanner) prefetchProbes(ctx context.Context, chunk []pending) map[strin
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for key := range ch {
-				r := s.rawProbe(ctx, key)
+			for p := range ch {
+				r := s.rawProbe(ctx, p)
 				mu.Lock()
-				for _, p := range groups[key] {
-					out[p] = r
-				}
+				out[p] = r
 				mu.Unlock()
 			}
 		}()
 	}
-	for _, key := range keys {
-		ch <- key
+	for _, p := range todo {
+		ch <- p
 	}
 	close(ch)
 	wg.Wait()
@@ -408,7 +391,9 @@ func (s *Scanner) Index(ctx context.Context, lib *ent.Library, path string) erro
 
 // walk recursively traverses dir, honouring .ignore files, and invokes fn for
 // each file whose extension is in exts. matchers carries the .ignore rules
-// inherited from ancestor directories.
+// inherited from ancestor directories. Symlinked files are followed (probing
+// and streaming resolve to the target), which is how `gofin sample` stands up
+// large synthetic libraries from a few real files.
 func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts map[string]bool, fn indexFunc, matchers []ignoreMatcher) error {
 	m, skipAll, err := loadIgnore(dir)
 	if err != nil {
