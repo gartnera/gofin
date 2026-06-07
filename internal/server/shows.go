@@ -24,7 +24,7 @@ func (s *Server) handleSeasons(w http.ResponseWriter, r *http.Request) {
 			mediaitem.KindEQ(mediaitem.KindSeason),
 		).
 		Order(ent.Asc(mediaitem.FieldIndexNumber), ent.Asc(mediaitem.FieldSortName)).
-		WithParent().
+		WithParent(withGrandparent).
 		All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -64,7 +64,7 @@ func (s *Server) handleEpisodes(w http.ResponseWriter, r *http.Request) {
 			ent.Asc(mediaitem.FieldIndexNumber),
 			ent.Asc(mediaitem.FieldSortName),
 		).
-		WithParent().
+		WithParent(withGrandparent).
 		All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)

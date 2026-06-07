@@ -29,6 +29,13 @@ func (s *Server) handleUserViews(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, jellyfin.QueryResult(views, len(views), 0))
 }
 
+// withGrandparent eagerly loads two parent levels so the item mapper can fill
+// in fields that depend on the grandparent — namely an Audio track's artist
+// id (track -> album -> artist).
+func withGrandparent(q *ent.MediaItemQuery) {
+	q.WithParent()
+}
+
 // parseKinds converts a comma-separated IncludeItemTypes value into kinds.
 func parseKinds(s string) []mediaitem.Kind {
 	if s == "" {
@@ -123,7 +130,7 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 		query = query.Limit(limit)
 	}
 
-	items, err := query.WithParent().All(r.Context())
+	items, err := query.WithParent(withGrandparent).All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -220,7 +227,7 @@ func (s *Server) handleLatestItems(w http.ResponseWriter, r *http.Request) {
 	items, err := query.
 		Order(ent.Desc(mediaitem.FieldMtime)).
 		Limit(limit).
-		WithParent().
+		WithParent(withGrandparent).
 		All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -243,7 +250,7 @@ func (s *Server) handleResumeItems(w http.ResponseWriter, r *http.Request) {
 			playstate.PlayedEQ(false),
 			playstate.PlaybackPositionTicksGT(0),
 		)).
-		WithParent().
+		WithParent(withGrandparent).
 		All(r.Context())
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -263,7 +270,7 @@ func (s *Server) lookupItem(w http.ResponseWriter, r *http.Request) *ent.MediaIt
 	}
 	it, err := s.client.MediaItem.Query().
 		Where(mediaitem.ID(id)).
-		WithParent().
+		WithParent(withGrandparent).
 		Only(r.Context())
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)

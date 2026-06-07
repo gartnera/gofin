@@ -100,9 +100,24 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 	if it.AlbumArtist != "" {
 		dto.SetAlbumArtist(it.AlbumArtist)
 		dto.SetArtists([]string{it.AlbumArtist})
+		// The album-detail view calls `track.ArtistItems.map(...)` and
+		// `track.AlbumArtists.map(...)` unconditionally, so populate both as
+		// NameGuidPair so the page doesn't crash before play is available. The
+		// Id is left empty when we don't have the artist's row in hand.
+		pair := api.NewNameGuidPair()
+		pair.SetName(it.AlbumArtist)
+		if it.Edges.Parent != nil && it.Edges.Parent.Edges.Parent != nil {
+			pair.SetId(FormatID(it.Edges.Parent.Edges.Parent.ID))
+		}
+		dto.SetArtistItems([]api.NameGuidPair{*pair})
+		dto.SetAlbumArtists([]api.NameGuidPair{*pair})
 	}
 	if it.Edges.Parent != nil {
 		dto.SetParentId(FormatID(it.Edges.Parent.ID))
+		if it.Kind == mediaitem.KindAudio && it.Edges.Parent.Kind == mediaitem.KindMusicAlbum {
+			dto.SetAlbum(it.Edges.Parent.Name)
+			dto.SetAlbumId(FormatID(it.Edges.Parent.ID))
+		}
 	}
 	if it.ImagePath != "" {
 		dto.SetImageTags(map[string]string{"Primary": FormatID(it.ID)})
