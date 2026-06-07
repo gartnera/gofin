@@ -39,7 +39,8 @@ func MediaTypeFor(k mediaitem.Kind) api.MediaType {
 	}
 }
 
-// MapUser converts an ent.User into a Jellyfin UserDto.
+// MapUser converts an ent.User into a Jellyfin UserDto. The web client reads
+// dto.Policy.IsAdministrator to gate admin UI, so we always include a Policy.
 func MapUser(u *ent.User, serverID string) api.UserDto {
 	dto := api.NewUserDto()
 	id := FormatID(u.ID)
@@ -48,6 +49,24 @@ func MapUser(u *ent.User, serverID string) api.UserDto {
 	dto.SetServerId(serverID)
 	dto.SetHasPassword(true)
 	dto.SetHasConfiguredPassword(true)
+	policy := api.NewUserPolicy("", "")
+	policy.SetIsAdministrator(u.IsAdmin)
+	policy.SetEnableContentDeletion(false)
+	policy.SetEnableMediaPlayback(true)
+	policy.SetEnableAudioPlaybackTranscoding(false)
+	policy.SetEnableVideoPlaybackTranscoding(false)
+	policy.SetEnablePlaybackRemuxing(false)
+	policy.SetEnableLiveTvManagement(false)
+	policy.SetEnableLiveTvAccess(false)
+	policy.SetEnableMediaConversion(false)
+	dto.SetPolicy(*policy)
+	cfg := api.NewUserConfiguration()
+	cfg.SetPlayDefaultAudioTrack(true)
+	cfg.SetRememberAudioSelections(true)
+	cfg.SetRememberSubtitleSelections(true)
+	cfg.SetEnableNextEpisodeAutoPlay(true)
+	cfg.SetSubtitleMode(api.SUBTITLEPLAYBACKMODE_DEFAULT)
+	dto.SetConfiguration(*cfg)
 	return *dto
 }
 
@@ -204,7 +223,13 @@ func MapLibraryView(lib *ent.Library, serverID string) api.BaseItemDto {
 
 // QueryResult wraps items in a BaseItemDtoQueryResult. total is the number of
 // records available before paging; startIndex is the offset of the first item.
+// The SDK serialises a nil Items slice as `omitempty` (i.e. missing), but the
+// jellyfin web client reads `.Items.length` unconditionally — so always emit an
+// empty array.
 func QueryResult(items []api.BaseItemDto, total, startIndex int) api.BaseItemDtoQueryResult {
+	if items == nil {
+		items = []api.BaseItemDto{}
+	}
 	res := api.NewBaseItemDtoQueryResult()
 	res.SetItems(items)
 	res.SetTotalRecordCount(int32(total))

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/internal/jellyfin"
@@ -34,6 +35,45 @@ func (s *Server) handleDisplayPreferences(w http.ResponseWriter, r *http.Request
 	dp.SetId(r.PathValue("displayPreferencesId"))
 	dp.SetCustomPrefs(map[string]string{})
 	writeJSON(w, http.StatusOK, dp)
+}
+
+// handleSetDisplayPreferences accepts a write of display prefs and discards it.
+// The web client posts on every settings change; without a 204 it surfaces a
+// generic error and prevents further navigation.
+func (s *Server) handleSetDisplayPreferences(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleEndpointInfo tells the client whether it's on the local network. We
+// always claim yes — gofin doesn't differentiate.
+func (s *Server) handleEndpointInfo(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"IsLocal": true, "IsInNetwork": true})
+}
+
+// handleBitrateTest streams `size` bytes of zeros so the client can estimate
+// throughput and decide direct-play is fine.
+func (s *Server) handleBitrateTest(w http.ResponseWriter, r *http.Request) {
+	size := atoiDefault(firstNonEmptyQuery(r.URL.Query(), "size", "Size"), 500000)
+	if size < 0 {
+		size = 0
+	}
+	if size > 10*1024*1024 {
+		size = 10 * 1024 * 1024
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", strconv.Itoa(size))
+	w.WriteHeader(http.StatusOK)
+	buf := make([]byte, 4096)
+	for size > 0 {
+		n := len(buf)
+		if n > size {
+			n = size
+		}
+		if _, err := w.Write(buf[:n]); err != nil {
+			return
+		}
+		size -= n
+	}
 }
 
 // handleLogout revokes the access token presented on the request.

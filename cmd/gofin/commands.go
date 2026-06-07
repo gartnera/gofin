@@ -54,7 +54,11 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				}
 			}()
 
-			srv := server.New(client, cfg.ServerName, server.WithScanner(sc))
+			opts := []server.Option{server.WithScanner(sc)}
+			if cfg.WebRoot != "" {
+				opts = append(opts, server.WithWebRoot(cfg.WebRoot))
+			}
+			srv := server.New(client, cfg.ServerName, opts...)
 			fmt.Printf("gofin listening on %s\n", cfg.Listen)
 			return http.ListenAndServe(cfg.Listen, srv)
 		},
