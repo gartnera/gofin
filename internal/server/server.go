@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/scanner"
@@ -66,73 +67,88 @@ var corsHandler = cors.New(cors.Options{
 	AllowedHeaders: []string{"Authorization", "Content-Type", "X-Emby-Authorization", "X-MediaBrowser-Token"},
 })
 
+// normalizePath lowercases each static segment of the URL path while
+// preserving the original path values that will be extracted by ServeMux.
+// Jellyfin clients send paths like /users/public; routes are registered in
+// title-case (/Users/Public), so we canonicalize before routing.
+func normalizePath(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = strings.ToLower(r.URL.Path)
+		if r.URL.RawPath != "" {
+			r2.URL.RawPath = strings.ToLower(r.URL.RawPath)
+		}
+		next.ServeHTTP(w, r2)
+	})
+}
+
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	corsHandler.Handler(s.mux).ServeHTTP(w, r)
+	corsHandler.Handler(normalizePath(s.mux)).ServeHTTP(w, r)
 }
 
 func (s *Server) routes() {
 	// Unauthenticated discovery + login.
-	s.mux.HandleFunc("GET /System/Info/Public", s.handlePublicSystemInfo)
-	s.mux.HandleFunc("GET /System/Ping", s.handlePing)
-	s.mux.HandleFunc("POST /System/Ping", s.handlePing)
-	s.mux.HandleFunc("POST /Users/AuthenticateByName", s.handleAuthenticateByName)
-	s.mux.HandleFunc("GET /Branding/Configuration", s.handleBrandingConfiguration)
-	s.mux.HandleFunc("GET /Users/Public", s.handlePublicUsers)
-	s.mux.HandleFunc("GET /QuickConnect/Enabled", s.handleQuickConnectEnabled)
+	s.mux.HandleFunc("GET /system/info/public", s.handlePublicSystemInfo)
+	s.mux.HandleFunc("GET /system/ping", s.handlePing)
+	s.mux.HandleFunc("POST /system/ping", s.handlePing)
+	s.mux.HandleFunc("POST /users/authenticatebyname", s.handleAuthenticateByName)
+	s.mux.HandleFunc("GET /branding/configuration", s.handleBrandingConfiguration)
+	s.mux.HandleFunc("GET /users/public", s.handlePublicUsers)
+	s.mux.HandleFunc("GET /quickconnect/enabled", s.handleQuickConnectEnabled)
 
 	// System / user info.
-	s.mux.HandleFunc("GET /System/Info", s.requireAuth(s.handleSystemInfo))
-	s.mux.HandleFunc("GET /Users/Me", s.requireAuth(s.handleCurrentUser))
-	s.mux.HandleFunc("GET /Users", s.requireAuth(s.handleUsers))
-	s.mux.HandleFunc("GET /Users/{userId}", s.requireAuth(s.handleUserByID))
+	s.mux.HandleFunc("GET /system/info", s.requireAuth(s.handleSystemInfo))
+	s.mux.HandleFunc("GET /users/me", s.requireAuth(s.handleCurrentUser))
+	s.mux.HandleFunc("GET /users", s.requireAuth(s.handleUsers))
+	s.mux.HandleFunc("GET /users/{userId}", s.requireAuth(s.handleUserByID))
 
 	// Library views.
-	s.mux.HandleFunc("GET /UserViews", s.requireAuth(s.handleUserViews))
-	s.mux.HandleFunc("GET /Users/{userId}/Views", s.requireAuth(s.handleUserViews))
+	s.mux.HandleFunc("GET /userviews", s.requireAuth(s.handleUserViews))
+	s.mux.HandleFunc("GET /users/{userId}/views", s.requireAuth(s.handleUserViews))
 
 	// Library scan / item refresh (admin only).
-	s.mux.HandleFunc("POST /Library/Refresh", s.requireAdmin(s.handleRefreshLibraries))
-	s.mux.HandleFunc("POST /Items/{itemId}/Refresh", s.requireAdmin(s.handleRefreshItem))
+	s.mux.HandleFunc("POST /library/refresh", s.requireAdmin(s.handleRefreshLibraries))
+	s.mux.HandleFunc("POST /items/{itemId}/refresh", s.requireAdmin(s.handleRefreshItem))
 
 	// Items.
-	s.mux.HandleFunc("GET /Items", s.requireAuth(s.handleItems))
-	s.mux.HandleFunc("GET /Users/{userId}/Items", s.requireAuth(s.handleItems))
-	s.mux.HandleFunc("GET /Items/{itemId}", s.requireAuth(s.handleItemByID))
-	s.mux.HandleFunc("GET /Users/{userId}/Items/{itemId}", s.requireAuth(s.handleItemByID))
-	s.mux.HandleFunc("GET /UserItems/Resume", s.requireAuth(s.handleResumeItems))
-	s.mux.HandleFunc("GET /Users/{userId}/Items/Resume", s.requireAuth(s.handleResumeItems))
+	s.mux.HandleFunc("GET /items", s.requireAuth(s.handleItems))
+	s.mux.HandleFunc("GET /users/{userId}/items", s.requireAuth(s.handleItems))
+	s.mux.HandleFunc("GET /items/{itemId}", s.requireAuth(s.handleItemByID))
+	s.mux.HandleFunc("GET /users/{userId}/items/{itemId}", s.requireAuth(s.handleItemByID))
+	s.mux.HandleFunc("GET /useritems/resume", s.requireAuth(s.handleResumeItems))
+	s.mux.HandleFunc("GET /users/{userId}/items/resume", s.requireAuth(s.handleResumeItems))
 
 	// Playback.
-	s.mux.HandleFunc("POST /Items/{itemId}/PlaybackInfo", s.requireAuth(s.handlePlaybackInfo))
-	s.mux.HandleFunc("GET /Items/{itemId}/PlaybackInfo", s.requireAuth(s.handlePlaybackInfo))
+	s.mux.HandleFunc("POST /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
+	s.mux.HandleFunc("GET /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
 
 	// Direct-play streaming.
-	s.mux.HandleFunc("GET /Videos/{itemId}/stream", s.requireAuth(s.handleStream))
-	s.mux.HandleFunc("HEAD /Videos/{itemId}/stream", s.requireAuth(s.handleStream))
-	s.mux.HandleFunc("GET /Audio/{itemId}/stream", s.requireAuth(s.handleStream))
-	s.mux.HandleFunc("HEAD /Audio/{itemId}/stream", s.requireAuth(s.handleStream))
-	s.mux.HandleFunc("GET /Audio/{itemId}/universal", s.requireAuth(s.handleStream))
+	s.mux.HandleFunc("GET /videos/{itemId}/stream", s.requireAuth(s.handleStream))
+	s.mux.HandleFunc("HEAD /videos/{itemId}/stream", s.requireAuth(s.handleStream))
+	s.mux.HandleFunc("GET /audio/{itemId}/stream", s.requireAuth(s.handleStream))
+	s.mux.HandleFunc("HEAD /audio/{itemId}/stream", s.requireAuth(s.handleStream))
+	s.mux.HandleFunc("GET /audio/{itemId}/universal", s.requireAuth(s.handleStream))
 
 	// Images (unauthenticated, as Jellyfin serves them).
-	s.mux.HandleFunc("GET /Items/{itemId}/Images/{imageType}", s.handleImage)
+	s.mux.HandleFunc("GET /items/{itemId}/images/{imageType}", s.handleImage)
 
 	// Playback reporting + play state.
-	s.mux.HandleFunc("POST /Sessions/Playing", s.requireAuth(s.handlePlaybackStart))
-	s.mux.HandleFunc("POST /Sessions/Playing/Progress", s.requireAuth(s.handlePlaybackProgress))
-	s.mux.HandleFunc("POST /Sessions/Playing/Stopped", s.requireAuth(s.handlePlaybackStopped))
-	s.mux.HandleFunc("POST /Sessions/Playing/Ping", s.requireAuth(s.handleNoContent))
-	s.mux.HandleFunc("POST /PlayingItems/{itemId}", s.requireAuth(s.handlePlaybackStart))
-	s.mux.HandleFunc("POST /PlayingItems/{itemId}/Progress", s.requireAuth(s.handlePlaybackProgress))
-	s.mux.HandleFunc("DELETE /PlayingItems/{itemId}", s.requireAuth(s.handlePlaybackStopped))
-	s.mux.HandleFunc("POST /UserPlayedItems/{itemId}", s.requireAuth(s.handleMarkPlayed))
-	s.mux.HandleFunc("DELETE /UserPlayedItems/{itemId}", s.requireAuth(s.handleMarkUnplayed))
+	s.mux.HandleFunc("POST /sessions/playing", s.requireAuth(s.handlePlaybackStart))
+	s.mux.HandleFunc("POST /sessions/playing/progress", s.requireAuth(s.handlePlaybackProgress))
+	s.mux.HandleFunc("POST /sessions/playing/stopped", s.requireAuth(s.handlePlaybackStopped))
+	s.mux.HandleFunc("POST /sessions/playing/ping", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /playingitems/{itemId}", s.requireAuth(s.handlePlaybackStart))
+	s.mux.HandleFunc("POST /playingitems/{itemId}/progress", s.requireAuth(s.handlePlaybackProgress))
+	s.mux.HandleFunc("DELETE /playingitems/{itemId}", s.requireAuth(s.handlePlaybackStopped))
+	s.mux.HandleFunc("POST /userplayeditems/{itemId}", s.requireAuth(s.handleMarkPlayed))
+	s.mux.HandleFunc("DELETE /userplayeditems/{itemId}", s.requireAuth(s.handleMarkUnplayed))
 
 	// Session / client niceties.
-	s.mux.HandleFunc("POST /Sessions/Capabilities", s.requireAuth(s.handleNoContent))
-	s.mux.HandleFunc("POST /Sessions/Capabilities/Full", s.requireAuth(s.handleNoContent))
-	s.mux.HandleFunc("POST /Sessions/Logout", s.requireAuth(s.handleLogout))
-	s.mux.HandleFunc("GET /DisplayPreferences/{displayPreferencesId}", s.requireAuth(s.handleDisplayPreferences))
+	s.mux.HandleFunc("POST /sessions/capabilities", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /sessions/capabilities/full", s.requireAuth(s.handleNoContent))
+	s.mux.HandleFunc("POST /sessions/logout", s.requireAuth(s.handleLogout))
+	s.mux.HandleFunc("GET /displaypreferences/{displayPreferencesId}", s.requireAuth(s.handleDisplayPreferences))
 }
 
 // writeJSON serialises v as JSON, relying on the jellyfin-go models'
