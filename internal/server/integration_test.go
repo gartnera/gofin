@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gartnera/gofin/ent"
@@ -601,6 +602,27 @@ func TestEndpointAndBitrateTestAndDisplayPrefsWrite(t *testing.T) {
 	}
 }
 
+// TestAncestorsAndSyncPlayStubs verifies the client-nicety endpoints the web
+// client polls on the detail page and at startup return an empty list instead
+// of a 404.
+func TestAncestorsAndSyncPlayStubs(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	movieID := firstMovie(t, client)
+
+	for _, path := range []string{"/Items/" + movieID + "/Ancestors", "/SyncPlay/List"} {
+		resp := authedGET(t, env, path)
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200", path, resp.StatusCode)
+		}
+		if strings.TrimSpace(string(body)) != "[]" {
+			t.Errorf("GET %s body = %q, want []", path, body)
+		}
+	}
+}
+
 func TestStreamWithContainerExtension(t *testing.T) {
 	env := setupEnv(t)
 	client := authedClient(env.srv.URL, env.token)
@@ -619,6 +641,43 @@ func TestStreamWithContainerExtension(t *testing.T) {
 	}
 	if ct := resp.Header.Get("Content-Type"); ct == "" || ct[:5] != "video" {
 		t.Errorf("Content-Type = %q, want video/*", ct)
+	}
+}
+
+// TestGetItemsByIds mirrors the web client's playback flow: when starting
+// playback it fetches the exact items to queue by id. Without Ids filtering the
+// server returned unrelated top-level items, so the player saw an item with no
+// MediaType ("No player found for the requested media: undefined").
+func TestGetItemsByIds(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	tracks, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_AUDIO}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tracks.Items) == 0 {
+		t.Fatal("no audio items indexed")
+	}
+	wantID := tracks.Items[0].GetId()
+
+	res, _, err := client.ItemsAPI.GetItems(ctx).Ids([]string{wantID}).Execute()
+	if err != nil {
+		t.Fatalf("GetItems(Ids): %v", err)
+	}
+	if len(res.Items) != 1 {
+		t.Fatalf("GetItems(Ids) returned %d items, want 1", len(res.Items))
+	}
+	got := res.Items[0]
+	if got.GetId() != wantID {
+		t.Errorf("returned id = %q, want %q", got.GetId(), wantID)
+	}
+	if got.GetMediaType() != jfapi.MEDIATYPE_AUDIO {
+		t.Errorf("MediaType = %q, want Audio", got.GetMediaType())
 	}
 }
 
