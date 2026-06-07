@@ -59,6 +59,25 @@ func parseKinds(s string) []mediaitem.Kind {
 	return kinds
 }
 
+// parseIDs converts a comma-separated list of dashless-hex item ids into UUIDs,
+// silently dropping any that don't parse.
+func parseIDs(s string) []uuid.UUID {
+	if s == "" {
+		return nil
+	}
+	var ids []uuid.UUID
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if id, err := jellyfin.ParseID(part); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 // sortOrderField maps a Jellyfin SortBy value to an ent ordering option.
 func sortOrderField(sortBy string, desc bool) mediaitem.OrderOption {
 	dir := ent.Asc
@@ -83,10 +102,17 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 	recursive := q.Get("recursive") == "true" || q.Get("Recursive") == "true"
 	kinds := parseKinds(firstNonEmptyQuery(q, "includeItemTypes", "IncludeItemTypes"))
 	search := firstNonEmptyQuery(q, "searchTerm", "SearchTerm")
+	ids := parseIDs(firstNonEmptyQuery(q, "ids", "Ids"))
 
 	query := s.client.MediaItem.Query()
 
-	if parentID != "" {
+	switch {
+	case len(ids) > 0:
+		// The web client fetches specific items by id when starting playback
+		// (e.g. an album's tracks). Filter to exactly those ids; parent/recursive
+		// scoping doesn't apply.
+		query = query.Where(mediaitem.IDIn(ids...))
+	case parentID != "":
 		id, err := jellyfin.ParseID(parentID)
 		if err != nil {
 			writeJSON(w, http.StatusOK, jellyfin.QueryResult(nil, 0, 0))
@@ -101,7 +127,7 @@ func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {
 		} else {
 			query = query.Where(mediaitem.HasParentWith(mediaitem.ID(id)))
 		}
-	} else if !recursive {
+	case !recursive:
 		query = query.Where(mediaitem.Not(mediaitem.HasParent()))
 	}
 

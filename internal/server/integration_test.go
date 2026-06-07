@@ -622,6 +622,43 @@ func TestStreamWithContainerExtension(t *testing.T) {
 	}
 }
 
+// TestGetItemsByIds mirrors the web client's playback flow: when starting
+// playback it fetches the exact items to queue by id. Without Ids filtering the
+// server returned unrelated top-level items, so the player saw an item with no
+// MediaType ("No player found for the requested media: undefined").
+func TestGetItemsByIds(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	tracks, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_AUDIO}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tracks.Items) == 0 {
+		t.Fatal("no audio items indexed")
+	}
+	wantID := tracks.Items[0].GetId()
+
+	res, _, err := client.ItemsAPI.GetItems(ctx).Ids([]string{wantID}).Execute()
+	if err != nil {
+		t.Fatalf("GetItems(Ids): %v", err)
+	}
+	if len(res.Items) != 1 {
+		t.Fatalf("GetItems(Ids) returned %d items, want 1", len(res.Items))
+	}
+	got := res.Items[0]
+	if got.GetId() != wantID {
+		t.Errorf("returned id = %q, want %q", got.GetId(), wantID)
+	}
+	if got.GetMediaType() != jfapi.MEDIATYPE_AUDIO {
+		t.Errorf("MediaType = %q, want Audio", got.GetMediaType())
+	}
+}
+
 func TestAudioItemExposesAlbumLinks(t *testing.T) {
 	env := setupEnv(t)
 	client := authedClient(env.srv.URL, env.token)
