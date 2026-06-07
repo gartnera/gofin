@@ -65,37 +65,6 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 	}
 }
 
-func scanCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
-	return &cobra.Command{
-		Use:   "scan",
-		Short: "Index all configured libraries",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadCfg()
-			if err != nil {
-				return err
-			}
-			client, err := openDB(cmd.Context(), cfg)
-			if err != nil {
-				return err
-			}
-			defer client.Close()
-
-			sc := scanner.New(client)
-			for _, libCfg := range cfg.Libraries {
-				lib, err := sc.EnsureLibrary(cmd.Context(), libCfg.Name, libCfg.Type, libCfg.Path)
-				if err != nil {
-					return fmt.Errorf("library %q: %w", libCfg.Name, err)
-				}
-				if err := sc.ScanLibrary(cmd.Context(), lib); err != nil {
-					return fmt.Errorf("scan %q: %w", libCfg.Name, err)
-				}
-				fmt.Printf("scanned %q (%s)\n", libCfg.Name, libCfg.Type)
-			}
-			return nil
-		},
-	}
-}
-
 func userCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",

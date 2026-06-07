@@ -52,8 +52,7 @@ The config path defaults to `gofin.yaml` (override with `--config` or
 go build -o gofin ./cmd/gofin
 
 ./gofin user add --name demo --password demo --admin   # create a user
-./gofin scan                                            # index libraries
-./gofin serve                                           # run the server
+./gofin serve                                           # scan libraries and run the server
 ```
 
 Point a Jellyfin client at `http://<host>:8096`, or exercise it directly:
