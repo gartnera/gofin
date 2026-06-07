@@ -9,6 +9,7 @@ import (
 	"github.com/dhowden/tag"
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/nfo"
 )
 
 // trackMeta is the metadata used to place an audio file in the hierarchy.
@@ -70,12 +71,24 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 	if err != nil {
 		return fmt.Errorf("artist %q: %w", meta.Artist, err)
 	}
+	// "artist.nfo" / "album.nfo" enrich the folder rows; apply only while still
+	// bare so repeated track scans don't re-write them.
+	if artist.Overview == "" {
+		if err := s.applyNFO(ctx, artist, nfo.Artist(path, lib.Path)); err != nil {
+			return err
+		}
+	}
 	album, err := s.findOrCreateFolder(ctx, lib, mediaitem.KindMusicAlbum, meta.Album, &artist.ID)
 	if err != nil {
 		return fmt.Errorf("album %q: %w", meta.Album, err)
 	}
 	if album.AlbumArtist == "" {
 		if err := album.Update().SetAlbumArtist(meta.Artist).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	if album.Overview == "" {
+		if err := s.applyNFO(ctx, album, nfo.Album(path, lib.Path)); err != nil {
 			return err
 		}
 	}

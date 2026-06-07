@@ -41,6 +41,20 @@ const (
 	FieldParentIndexNumber = "parent_index_number"
 	// FieldOverview holds the string denoting the overview field in the database.
 	FieldOverview = "overview"
+	// FieldTagline holds the string denoting the tagline field in the database.
+	FieldTagline = "tagline"
+	// FieldOfficialRating holds the string denoting the official_rating field in the database.
+	FieldOfficialRating = "official_rating"
+	// FieldCommunityRating holds the string denoting the community_rating field in the database.
+	FieldCommunityRating = "community_rating"
+	// FieldPremiereDate holds the string denoting the premiere_date field in the database.
+	FieldPremiereDate = "premiere_date"
+	// FieldGenres holds the string denoting the genres field in the database.
+	FieldGenres = "genres"
+	// FieldStudios holds the string denoting the studios field in the database.
+	FieldStudios = "studios"
+	// FieldPeople holds the string denoting the people field in the database.
+	FieldPeople = "people"
 	// FieldAlbumArtist holds the string denoting the album_artist field in the database.
 	FieldAlbumArtist = "album_artist"
 	// FieldImagePath holds the string denoting the image_path field in the database.
@@ -97,6 +111,13 @@ var Columns = []string{
 	FieldIndexNumberEnd,
 	FieldParentIndexNumber,
 	FieldOverview,
+	FieldTagline,
+	FieldOfficialRating,
+	FieldCommunityRating,
+	FieldPremiereDate,
+	FieldGenres,
+	FieldStudios,
+	FieldPeople,
 	FieldAlbumArtist,
 	FieldImagePath,
 	FieldMediaStreams,
@@ -141,6 +162,10 @@ var (
 	DefaultRunTimeTicks int64
 	// DefaultOverview holds the default value on creation for the "overview" field.
 	DefaultOverview string
+	// DefaultTagline holds the default value on creation for the "tagline" field.
+	DefaultTagline string
+	// DefaultOfficialRating holds the default value on creation for the "official_rating" field.
+	DefaultOfficialRating string
 	// DefaultAlbumArtist holds the default value on creation for the "album_artist" field.
 	DefaultAlbumArtist string
 	// DefaultImagePath holds the default value on creation for the "image_path" field.
@@ -248,6 +273,26 @@ func ByParentIndexNumber(opts ...sql.OrderTermOption) OrderOption {
 // ByOverview orders the results by the overview field.
 func ByOverview(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOverview, opts...).ToFunc()
+}
+
+// ByTagline orders the results by the tagline field.
+func ByTagline(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTagline, opts...).ToFunc()
+}
+
+// ByOfficialRating orders the results by the official_rating field.
+func ByOfficialRating(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOfficialRating, opts...).ToFunc()
+}
+
+// ByCommunityRating orders the results by the community_rating field.
+func ByCommunityRating(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommunityRating, opts...).ToFunc()
+}
+
+// ByPremiereDate orders the results by the premiere_date field.
+func ByPremiereDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPremiereDate, opts...).ToFunc()
 }
 
 // ByAlbumArtist orders the results by the album_artist field.

@@ -17,6 +17,7 @@ import (
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
 	"github.com/gartnera/gofin/ent/user"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -1259,6 +1260,17 @@ type MediaItemMutation struct {
 	parent_index_number    *int32
 	addparent_index_number *int32
 	overview               *string
+	tagline                *string
+	official_rating        *string
+	community_rating       *float32
+	addcommunity_rating    *float32
+	premiere_date          *time.Time
+	genres                 *[]string
+	appendgenres           []string
+	studios                *[]string
+	appendstudios          []string
+	people                 *[]nfo.Person
+	appendpeople           []nfo.Person
 	album_artist           *string
 	image_path             *string
 	media_streams          *[]probe.Stream
@@ -2047,6 +2059,392 @@ func (m *MediaItemMutation) ResetOverview() {
 	m.overview = nil
 }
 
+// SetTagline sets the "tagline" field.
+func (m *MediaItemMutation) SetTagline(s string) {
+	m.tagline = &s
+}
+
+// Tagline returns the value of the "tagline" field in the mutation.
+func (m *MediaItemMutation) Tagline() (r string, exists bool) {
+	v := m.tagline
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTagline returns the old "tagline" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldTagline(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTagline is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTagline requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTagline: %w", err)
+	}
+	return oldValue.Tagline, nil
+}
+
+// ResetTagline resets all changes to the "tagline" field.
+func (m *MediaItemMutation) ResetTagline() {
+	m.tagline = nil
+}
+
+// SetOfficialRating sets the "official_rating" field.
+func (m *MediaItemMutation) SetOfficialRating(s string) {
+	m.official_rating = &s
+}
+
+// OfficialRating returns the value of the "official_rating" field in the mutation.
+func (m *MediaItemMutation) OfficialRating() (r string, exists bool) {
+	v := m.official_rating
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOfficialRating returns the old "official_rating" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldOfficialRating(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOfficialRating is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOfficialRating requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOfficialRating: %w", err)
+	}
+	return oldValue.OfficialRating, nil
+}
+
+// ResetOfficialRating resets all changes to the "official_rating" field.
+func (m *MediaItemMutation) ResetOfficialRating() {
+	m.official_rating = nil
+}
+
+// SetCommunityRating sets the "community_rating" field.
+func (m *MediaItemMutation) SetCommunityRating(f float32) {
+	m.community_rating = &f
+	m.addcommunity_rating = nil
+}
+
+// CommunityRating returns the value of the "community_rating" field in the mutation.
+func (m *MediaItemMutation) CommunityRating() (r float32, exists bool) {
+	v := m.community_rating
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommunityRating returns the old "community_rating" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldCommunityRating(ctx context.Context) (v *float32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommunityRating is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommunityRating requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommunityRating: %w", err)
+	}
+	return oldValue.CommunityRating, nil
+}
+
+// AddCommunityRating adds f to the "community_rating" field.
+func (m *MediaItemMutation) AddCommunityRating(f float32) {
+	if m.addcommunity_rating != nil {
+		*m.addcommunity_rating += f
+	} else {
+		m.addcommunity_rating = &f
+	}
+}
+
+// AddedCommunityRating returns the value that was added to the "community_rating" field in this mutation.
+func (m *MediaItemMutation) AddedCommunityRating() (r float32, exists bool) {
+	v := m.addcommunity_rating
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCommunityRating clears the value of the "community_rating" field.
+func (m *MediaItemMutation) ClearCommunityRating() {
+	m.community_rating = nil
+	m.addcommunity_rating = nil
+	m.clearedFields[mediaitem.FieldCommunityRating] = struct{}{}
+}
+
+// CommunityRatingCleared returns if the "community_rating" field was cleared in this mutation.
+func (m *MediaItemMutation) CommunityRatingCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldCommunityRating]
+	return ok
+}
+
+// ResetCommunityRating resets all changes to the "community_rating" field.
+func (m *MediaItemMutation) ResetCommunityRating() {
+	m.community_rating = nil
+	m.addcommunity_rating = nil
+	delete(m.clearedFields, mediaitem.FieldCommunityRating)
+}
+
+// SetPremiereDate sets the "premiere_date" field.
+func (m *MediaItemMutation) SetPremiereDate(t time.Time) {
+	m.premiere_date = &t
+}
+
+// PremiereDate returns the value of the "premiere_date" field in the mutation.
+func (m *MediaItemMutation) PremiereDate() (r time.Time, exists bool) {
+	v := m.premiere_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPremiereDate returns the old "premiere_date" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldPremiereDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPremiereDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPremiereDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPremiereDate: %w", err)
+	}
+	return oldValue.PremiereDate, nil
+}
+
+// ClearPremiereDate clears the value of the "premiere_date" field.
+func (m *MediaItemMutation) ClearPremiereDate() {
+	m.premiere_date = nil
+	m.clearedFields[mediaitem.FieldPremiereDate] = struct{}{}
+}
+
+// PremiereDateCleared returns if the "premiere_date" field was cleared in this mutation.
+func (m *MediaItemMutation) PremiereDateCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldPremiereDate]
+	return ok
+}
+
+// ResetPremiereDate resets all changes to the "premiere_date" field.
+func (m *MediaItemMutation) ResetPremiereDate() {
+	m.premiere_date = nil
+	delete(m.clearedFields, mediaitem.FieldPremiereDate)
+}
+
+// SetGenres sets the "genres" field.
+func (m *MediaItemMutation) SetGenres(s []string) {
+	m.genres = &s
+	m.appendgenres = nil
+}
+
+// Genres returns the value of the "genres" field in the mutation.
+func (m *MediaItemMutation) Genres() (r []string, exists bool) {
+	v := m.genres
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGenres returns the old "genres" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldGenres(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGenres is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGenres requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGenres: %w", err)
+	}
+	return oldValue.Genres, nil
+}
+
+// AppendGenres adds s to the "genres" field.
+func (m *MediaItemMutation) AppendGenres(s []string) {
+	m.appendgenres = append(m.appendgenres, s...)
+}
+
+// AppendedGenres returns the list of values that were appended to the "genres" field in this mutation.
+func (m *MediaItemMutation) AppendedGenres() ([]string, bool) {
+	if len(m.appendgenres) == 0 {
+		return nil, false
+	}
+	return m.appendgenres, true
+}
+
+// ClearGenres clears the value of the "genres" field.
+func (m *MediaItemMutation) ClearGenres() {
+	m.genres = nil
+	m.appendgenres = nil
+	m.clearedFields[mediaitem.FieldGenres] = struct{}{}
+}
+
+// GenresCleared returns if the "genres" field was cleared in this mutation.
+func (m *MediaItemMutation) GenresCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldGenres]
+	return ok
+}
+
+// ResetGenres resets all changes to the "genres" field.
+func (m *MediaItemMutation) ResetGenres() {
+	m.genres = nil
+	m.appendgenres = nil
+	delete(m.clearedFields, mediaitem.FieldGenres)
+}
+
+// SetStudios sets the "studios" field.
+func (m *MediaItemMutation) SetStudios(s []string) {
+	m.studios = &s
+	m.appendstudios = nil
+}
+
+// Studios returns the value of the "studios" field in the mutation.
+func (m *MediaItemMutation) Studios() (r []string, exists bool) {
+	v := m.studios
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStudios returns the old "studios" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldStudios(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStudios is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStudios requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStudios: %w", err)
+	}
+	return oldValue.Studios, nil
+}
+
+// AppendStudios adds s to the "studios" field.
+func (m *MediaItemMutation) AppendStudios(s []string) {
+	m.appendstudios = append(m.appendstudios, s...)
+}
+
+// AppendedStudios returns the list of values that were appended to the "studios" field in this mutation.
+func (m *MediaItemMutation) AppendedStudios() ([]string, bool) {
+	if len(m.appendstudios) == 0 {
+		return nil, false
+	}
+	return m.appendstudios, true
+}
+
+// ClearStudios clears the value of the "studios" field.
+func (m *MediaItemMutation) ClearStudios() {
+	m.studios = nil
+	m.appendstudios = nil
+	m.clearedFields[mediaitem.FieldStudios] = struct{}{}
+}
+
+// StudiosCleared returns if the "studios" field was cleared in this mutation.
+func (m *MediaItemMutation) StudiosCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldStudios]
+	return ok
+}
+
+// ResetStudios resets all changes to the "studios" field.
+func (m *MediaItemMutation) ResetStudios() {
+	m.studios = nil
+	m.appendstudios = nil
+	delete(m.clearedFields, mediaitem.FieldStudios)
+}
+
+// SetPeople sets the "people" field.
+func (m *MediaItemMutation) SetPeople(n []nfo.Person) {
+	m.people = &n
+	m.appendpeople = nil
+}
+
+// People returns the value of the "people" field in the mutation.
+func (m *MediaItemMutation) People() (r []nfo.Person, exists bool) {
+	v := m.people
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPeople returns the old "people" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldPeople(ctx context.Context) (v []nfo.Person, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPeople is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPeople requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPeople: %w", err)
+	}
+	return oldValue.People, nil
+}
+
+// AppendPeople adds n to the "people" field.
+func (m *MediaItemMutation) AppendPeople(n []nfo.Person) {
+	m.appendpeople = append(m.appendpeople, n...)
+}
+
+// AppendedPeople returns the list of values that were appended to the "people" field in this mutation.
+func (m *MediaItemMutation) AppendedPeople() ([]nfo.Person, bool) {
+	if len(m.appendpeople) == 0 {
+		return nil, false
+	}
+	return m.appendpeople, true
+}
+
+// ClearPeople clears the value of the "people" field.
+func (m *MediaItemMutation) ClearPeople() {
+	m.people = nil
+	m.appendpeople = nil
+	m.clearedFields[mediaitem.FieldPeople] = struct{}{}
+}
+
+// PeopleCleared returns if the "people" field was cleared in this mutation.
+func (m *MediaItemMutation) PeopleCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldPeople]
+	return ok
+}
+
+// ResetPeople resets all changes to the "people" field.
+func (m *MediaItemMutation) ResetPeople() {
+	m.people = nil
+	m.appendpeople = nil
+	delete(m.clearedFields, mediaitem.FieldPeople)
+}
+
 // SetAlbumArtist sets the "album_artist" field.
 func (m *MediaItemMutation) SetAlbumArtist(s string) {
 	m.album_artist = &s
@@ -2404,7 +2802,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 23)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2443,6 +2841,27 @@ func (m *MediaItemMutation) Fields() []string {
 	}
 	if m.overview != nil {
 		fields = append(fields, mediaitem.FieldOverview)
+	}
+	if m.tagline != nil {
+		fields = append(fields, mediaitem.FieldTagline)
+	}
+	if m.official_rating != nil {
+		fields = append(fields, mediaitem.FieldOfficialRating)
+	}
+	if m.community_rating != nil {
+		fields = append(fields, mediaitem.FieldCommunityRating)
+	}
+	if m.premiere_date != nil {
+		fields = append(fields, mediaitem.FieldPremiereDate)
+	}
+	if m.genres != nil {
+		fields = append(fields, mediaitem.FieldGenres)
+	}
+	if m.studios != nil {
+		fields = append(fields, mediaitem.FieldStudios)
+	}
+	if m.people != nil {
+		fields = append(fields, mediaitem.FieldPeople)
 	}
 	if m.album_artist != nil {
 		fields = append(fields, mediaitem.FieldAlbumArtist)
@@ -2487,6 +2906,20 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.ParentIndexNumber()
 	case mediaitem.FieldOverview:
 		return m.Overview()
+	case mediaitem.FieldTagline:
+		return m.Tagline()
+	case mediaitem.FieldOfficialRating:
+		return m.OfficialRating()
+	case mediaitem.FieldCommunityRating:
+		return m.CommunityRating()
+	case mediaitem.FieldPremiereDate:
+		return m.PremiereDate()
+	case mediaitem.FieldGenres:
+		return m.Genres()
+	case mediaitem.FieldStudios:
+		return m.Studios()
+	case mediaitem.FieldPeople:
+		return m.People()
 	case mediaitem.FieldAlbumArtist:
 		return m.AlbumArtist()
 	case mediaitem.FieldImagePath:
@@ -2528,6 +2961,20 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldParentIndexNumber(ctx)
 	case mediaitem.FieldOverview:
 		return m.OldOverview(ctx)
+	case mediaitem.FieldTagline:
+		return m.OldTagline(ctx)
+	case mediaitem.FieldOfficialRating:
+		return m.OldOfficialRating(ctx)
+	case mediaitem.FieldCommunityRating:
+		return m.OldCommunityRating(ctx)
+	case mediaitem.FieldPremiereDate:
+		return m.OldPremiereDate(ctx)
+	case mediaitem.FieldGenres:
+		return m.OldGenres(ctx)
+	case mediaitem.FieldStudios:
+		return m.OldStudios(ctx)
+	case mediaitem.FieldPeople:
+		return m.OldPeople(ctx)
 	case mediaitem.FieldAlbumArtist:
 		return m.OldAlbumArtist(ctx)
 	case mediaitem.FieldImagePath:
@@ -2634,6 +3081,55 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOverview(v)
 		return nil
+	case mediaitem.FieldTagline:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTagline(v)
+		return nil
+	case mediaitem.FieldOfficialRating:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOfficialRating(v)
+		return nil
+	case mediaitem.FieldCommunityRating:
+		v, ok := value.(float32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommunityRating(v)
+		return nil
+	case mediaitem.FieldPremiereDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPremiereDate(v)
+		return nil
+	case mediaitem.FieldGenres:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGenres(v)
+		return nil
+	case mediaitem.FieldStudios:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStudios(v)
+		return nil
+	case mediaitem.FieldPeople:
+		v, ok := value.([]nfo.Person)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPeople(v)
+		return nil
 	case mediaitem.FieldAlbumArtist:
 		v, ok := value.(string)
 		if !ok {
@@ -2684,6 +3180,9 @@ func (m *MediaItemMutation) AddedFields() []string {
 	if m.addparent_index_number != nil {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
 	}
+	if m.addcommunity_rating != nil {
+		fields = append(fields, mediaitem.FieldCommunityRating)
+	}
 	return fields
 }
 
@@ -2706,6 +3205,8 @@ func (m *MediaItemMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedIndexNumberEnd()
 	case mediaitem.FieldParentIndexNumber:
 		return m.AddedParentIndexNumber()
+	case mediaitem.FieldCommunityRating:
+		return m.AddedCommunityRating()
 	}
 	return nil, false
 }
@@ -2764,6 +3265,13 @@ func (m *MediaItemMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddParentIndexNumber(v)
 		return nil
+	case mediaitem.FieldCommunityRating:
+		v, ok := value.(float32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCommunityRating(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MediaItem numeric field %s", name)
 }
@@ -2783,6 +3291,21 @@ func (m *MediaItemMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(mediaitem.FieldParentIndexNumber) {
 		fields = append(fields, mediaitem.FieldParentIndexNumber)
+	}
+	if m.FieldCleared(mediaitem.FieldCommunityRating) {
+		fields = append(fields, mediaitem.FieldCommunityRating)
+	}
+	if m.FieldCleared(mediaitem.FieldPremiereDate) {
+		fields = append(fields, mediaitem.FieldPremiereDate)
+	}
+	if m.FieldCleared(mediaitem.FieldGenres) {
+		fields = append(fields, mediaitem.FieldGenres)
+	}
+	if m.FieldCleared(mediaitem.FieldStudios) {
+		fields = append(fields, mediaitem.FieldStudios)
+	}
+	if m.FieldCleared(mediaitem.FieldPeople) {
+		fields = append(fields, mediaitem.FieldPeople)
 	}
 	if m.FieldCleared(mediaitem.FieldMediaStreams) {
 		fields = append(fields, mediaitem.FieldMediaStreams)
@@ -2812,6 +3335,21 @@ func (m *MediaItemMutation) ClearField(name string) error {
 		return nil
 	case mediaitem.FieldParentIndexNumber:
 		m.ClearParentIndexNumber()
+		return nil
+	case mediaitem.FieldCommunityRating:
+		m.ClearCommunityRating()
+		return nil
+	case mediaitem.FieldPremiereDate:
+		m.ClearPremiereDate()
+		return nil
+	case mediaitem.FieldGenres:
+		m.ClearGenres()
+		return nil
+	case mediaitem.FieldStudios:
+		m.ClearStudios()
+		return nil
+	case mediaitem.FieldPeople:
+		m.ClearPeople()
 		return nil
 	case mediaitem.FieldMediaStreams:
 		m.ClearMediaStreams()
@@ -2862,6 +3400,27 @@ func (m *MediaItemMutation) ResetField(name string) error {
 		return nil
 	case mediaitem.FieldOverview:
 		m.ResetOverview()
+		return nil
+	case mediaitem.FieldTagline:
+		m.ResetTagline()
+		return nil
+	case mediaitem.FieldOfficialRating:
+		m.ResetOfficialRating()
+		return nil
+	case mediaitem.FieldCommunityRating:
+		m.ResetCommunityRating()
+		return nil
+	case mediaitem.FieldPremiereDate:
+		m.ResetPremiereDate()
+		return nil
+	case mediaitem.FieldGenres:
+		m.ResetGenres()
+		return nil
+	case mediaitem.FieldStudios:
+		m.ResetStudios()
+		return nil
+	case mediaitem.FieldPeople:
+		m.ResetPeople()
 		return nil
 	case mediaitem.FieldAlbumArtist:
 		m.ResetAlbumArtist()

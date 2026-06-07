@@ -3,6 +3,8 @@
 package mediaitem
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/gartnera/gofin/ent/predicate"
@@ -112,6 +114,26 @@ func ParentIndexNumber(v int32) predicate.MediaItem {
 // Overview applies equality check predicate on the "overview" field. It's identical to OverviewEQ.
 func Overview(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldOverview, v))
+}
+
+// Tagline applies equality check predicate on the "tagline" field. It's identical to TaglineEQ.
+func Tagline(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldTagline, v))
+}
+
+// OfficialRating applies equality check predicate on the "official_rating" field. It's identical to OfficialRatingEQ.
+func OfficialRating(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldOfficialRating, v))
+}
+
+// CommunityRating applies equality check predicate on the "community_rating" field. It's identical to CommunityRatingEQ.
+func CommunityRating(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldCommunityRating, v))
+}
+
+// PremiereDate applies equality check predicate on the "premiere_date" field. It's identical to PremiereDateEQ.
+func PremiereDate(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldPremiereDate, v))
 }
 
 // AlbumArtist applies equality check predicate on the "album_artist" field. It's identical to AlbumArtistEQ.
@@ -787,6 +809,266 @@ func OverviewEqualFold(v string) predicate.MediaItem {
 // OverviewContainsFold applies the ContainsFold predicate on the "overview" field.
 func OverviewContainsFold(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldContainsFold(FieldOverview, v))
+}
+
+// TaglineEQ applies the EQ predicate on the "tagline" field.
+func TaglineEQ(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldTagline, v))
+}
+
+// TaglineNEQ applies the NEQ predicate on the "tagline" field.
+func TaglineNEQ(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldTagline, v))
+}
+
+// TaglineIn applies the In predicate on the "tagline" field.
+func TaglineIn(vs ...string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldTagline, vs...))
+}
+
+// TaglineNotIn applies the NotIn predicate on the "tagline" field.
+func TaglineNotIn(vs ...string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldTagline, vs...))
+}
+
+// TaglineGT applies the GT predicate on the "tagline" field.
+func TaglineGT(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldTagline, v))
+}
+
+// TaglineGTE applies the GTE predicate on the "tagline" field.
+func TaglineGTE(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldTagline, v))
+}
+
+// TaglineLT applies the LT predicate on the "tagline" field.
+func TaglineLT(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldTagline, v))
+}
+
+// TaglineLTE applies the LTE predicate on the "tagline" field.
+func TaglineLTE(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldTagline, v))
+}
+
+// TaglineContains applies the Contains predicate on the "tagline" field.
+func TaglineContains(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldContains(FieldTagline, v))
+}
+
+// TaglineHasPrefix applies the HasPrefix predicate on the "tagline" field.
+func TaglineHasPrefix(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldHasPrefix(FieldTagline, v))
+}
+
+// TaglineHasSuffix applies the HasSuffix predicate on the "tagline" field.
+func TaglineHasSuffix(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldHasSuffix(FieldTagline, v))
+}
+
+// TaglineEqualFold applies the EqualFold predicate on the "tagline" field.
+func TaglineEqualFold(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEqualFold(FieldTagline, v))
+}
+
+// TaglineContainsFold applies the ContainsFold predicate on the "tagline" field.
+func TaglineContainsFold(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldContainsFold(FieldTagline, v))
+}
+
+// OfficialRatingEQ applies the EQ predicate on the "official_rating" field.
+func OfficialRatingEQ(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldOfficialRating, v))
+}
+
+// OfficialRatingNEQ applies the NEQ predicate on the "official_rating" field.
+func OfficialRatingNEQ(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldOfficialRating, v))
+}
+
+// OfficialRatingIn applies the In predicate on the "official_rating" field.
+func OfficialRatingIn(vs ...string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldOfficialRating, vs...))
+}
+
+// OfficialRatingNotIn applies the NotIn predicate on the "official_rating" field.
+func OfficialRatingNotIn(vs ...string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldOfficialRating, vs...))
+}
+
+// OfficialRatingGT applies the GT predicate on the "official_rating" field.
+func OfficialRatingGT(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldOfficialRating, v))
+}
+
+// OfficialRatingGTE applies the GTE predicate on the "official_rating" field.
+func OfficialRatingGTE(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldOfficialRating, v))
+}
+
+// OfficialRatingLT applies the LT predicate on the "official_rating" field.
+func OfficialRatingLT(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldOfficialRating, v))
+}
+
+// OfficialRatingLTE applies the LTE predicate on the "official_rating" field.
+func OfficialRatingLTE(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldOfficialRating, v))
+}
+
+// OfficialRatingContains applies the Contains predicate on the "official_rating" field.
+func OfficialRatingContains(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldContains(FieldOfficialRating, v))
+}
+
+// OfficialRatingHasPrefix applies the HasPrefix predicate on the "official_rating" field.
+func OfficialRatingHasPrefix(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldHasPrefix(FieldOfficialRating, v))
+}
+
+// OfficialRatingHasSuffix applies the HasSuffix predicate on the "official_rating" field.
+func OfficialRatingHasSuffix(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldHasSuffix(FieldOfficialRating, v))
+}
+
+// OfficialRatingEqualFold applies the EqualFold predicate on the "official_rating" field.
+func OfficialRatingEqualFold(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEqualFold(FieldOfficialRating, v))
+}
+
+// OfficialRatingContainsFold applies the ContainsFold predicate on the "official_rating" field.
+func OfficialRatingContainsFold(v string) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldContainsFold(FieldOfficialRating, v))
+}
+
+// CommunityRatingEQ applies the EQ predicate on the "community_rating" field.
+func CommunityRatingEQ(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldCommunityRating, v))
+}
+
+// CommunityRatingNEQ applies the NEQ predicate on the "community_rating" field.
+func CommunityRatingNEQ(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldCommunityRating, v))
+}
+
+// CommunityRatingIn applies the In predicate on the "community_rating" field.
+func CommunityRatingIn(vs ...float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldCommunityRating, vs...))
+}
+
+// CommunityRatingNotIn applies the NotIn predicate on the "community_rating" field.
+func CommunityRatingNotIn(vs ...float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldCommunityRating, vs...))
+}
+
+// CommunityRatingGT applies the GT predicate on the "community_rating" field.
+func CommunityRatingGT(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldCommunityRating, v))
+}
+
+// CommunityRatingGTE applies the GTE predicate on the "community_rating" field.
+func CommunityRatingGTE(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldCommunityRating, v))
+}
+
+// CommunityRatingLT applies the LT predicate on the "community_rating" field.
+func CommunityRatingLT(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldCommunityRating, v))
+}
+
+// CommunityRatingLTE applies the LTE predicate on the "community_rating" field.
+func CommunityRatingLTE(v float32) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldCommunityRating, v))
+}
+
+// CommunityRatingIsNil applies the IsNil predicate on the "community_rating" field.
+func CommunityRatingIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldCommunityRating))
+}
+
+// CommunityRatingNotNil applies the NotNil predicate on the "community_rating" field.
+func CommunityRatingNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldCommunityRating))
+}
+
+// PremiereDateEQ applies the EQ predicate on the "premiere_date" field.
+func PremiereDateEQ(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldPremiereDate, v))
+}
+
+// PremiereDateNEQ applies the NEQ predicate on the "premiere_date" field.
+func PremiereDateNEQ(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldPremiereDate, v))
+}
+
+// PremiereDateIn applies the In predicate on the "premiere_date" field.
+func PremiereDateIn(vs ...time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldPremiereDate, vs...))
+}
+
+// PremiereDateNotIn applies the NotIn predicate on the "premiere_date" field.
+func PremiereDateNotIn(vs ...time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldPremiereDate, vs...))
+}
+
+// PremiereDateGT applies the GT predicate on the "premiere_date" field.
+func PremiereDateGT(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldPremiereDate, v))
+}
+
+// PremiereDateGTE applies the GTE predicate on the "premiere_date" field.
+func PremiereDateGTE(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldPremiereDate, v))
+}
+
+// PremiereDateLT applies the LT predicate on the "premiere_date" field.
+func PremiereDateLT(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldPremiereDate, v))
+}
+
+// PremiereDateLTE applies the LTE predicate on the "premiere_date" field.
+func PremiereDateLTE(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldPremiereDate, v))
+}
+
+// PremiereDateIsNil applies the IsNil predicate on the "premiere_date" field.
+func PremiereDateIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldPremiereDate))
+}
+
+// PremiereDateNotNil applies the NotNil predicate on the "premiere_date" field.
+func PremiereDateNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldPremiereDate))
+}
+
+// GenresIsNil applies the IsNil predicate on the "genres" field.
+func GenresIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldGenres))
+}
+
+// GenresNotNil applies the NotNil predicate on the "genres" field.
+func GenresNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldGenres))
+}
+
+// StudiosIsNil applies the IsNil predicate on the "studios" field.
+func StudiosIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldStudios))
+}
+
+// StudiosNotNil applies the NotNil predicate on the "studios" field.
+func StudiosNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldStudios))
+}
+
+// PeopleIsNil applies the IsNil predicate on the "people" field.
+func PeopleIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldPeople))
+}
+
+// PeopleNotNil applies the NotNil predicate on the "people" field.
+func PeopleNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldPeople))
 }
 
 // AlbumArtistEQ applies the EQ predicate on the "album_artist" field.

@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -46,6 +48,20 @@ type MediaItem struct {
 	ParentIndexNumber *int32 `json:"parent_index_number,omitempty"`
 	// Overview holds the value of the "overview" field.
 	Overview string `json:"overview,omitempty"`
+	// Tagline holds the value of the "tagline" field.
+	Tagline string `json:"tagline,omitempty"`
+	// OfficialRating holds the value of the "official_rating" field.
+	OfficialRating string `json:"official_rating,omitempty"`
+	// CommunityRating holds the value of the "community_rating" field.
+	CommunityRating *float32 `json:"community_rating,omitempty"`
+	// PremiereDate holds the value of the "premiere_date" field.
+	PremiereDate *time.Time `json:"premiere_date,omitempty"`
+	// Genres holds the value of the "genres" field.
+	Genres []string `json:"genres,omitempty"`
+	// Studios holds the value of the "studios" field.
+	Studios []string `json:"studios,omitempty"`
+	// People holds the value of the "people" field.
+	People []nfo.Person `json:"people,omitempty"`
 	// AlbumArtist holds the value of the "album_artist" field.
 	AlbumArtist string `json:"album_artist,omitempty"`
 	// ImagePath holds the value of the "image_path" field.
@@ -120,12 +136,16 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case mediaitem.FieldMediaStreams:
+		case mediaitem.FieldGenres, mediaitem.FieldStudios, mediaitem.FieldPeople, mediaitem.FieldMediaStreams:
 			values[i] = new([]byte)
+		case mediaitem.FieldCommunityRating:
+			values[i] = new(sql.NullFloat64)
 		case mediaitem.FieldMtime, mediaitem.FieldSize, mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldIndexNumberEnd, mediaitem.FieldParentIndexNumber:
 			values[i] = new(sql.NullInt64)
-		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
+		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldTagline, mediaitem.FieldOfficialRating, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
 			values[i] = new(sql.NullString)
+		case mediaitem.FieldPremiereDate:
+			values[i] = new(sql.NullTime)
 		case mediaitem.FieldID:
 			values[i] = new(uuid.UUID)
 		case mediaitem.ForeignKeys[0]: // library_items
@@ -234,6 +254,56 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field overview", values[i])
 			} else if value.Valid {
 				_m.Overview = value.String
+			}
+		case mediaitem.FieldTagline:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field tagline", values[i])
+			} else if value.Valid {
+				_m.Tagline = value.String
+			}
+		case mediaitem.FieldOfficialRating:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field official_rating", values[i])
+			} else if value.Valid {
+				_m.OfficialRating = value.String
+			}
+		case mediaitem.FieldCommunityRating:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field community_rating", values[i])
+			} else if value.Valid {
+				_m.CommunityRating = new(float32)
+				*_m.CommunityRating = float32(value.Float64)
+			}
+		case mediaitem.FieldPremiereDate:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field premiere_date", values[i])
+			} else if value.Valid {
+				_m.PremiereDate = new(time.Time)
+				*_m.PremiereDate = value.Time
+			}
+		case mediaitem.FieldGenres:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field genres", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Genres); err != nil {
+					return fmt.Errorf("unmarshal field genres: %w", err)
+				}
+			}
+		case mediaitem.FieldStudios:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field studios", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Studios); err != nil {
+					return fmt.Errorf("unmarshal field studios: %w", err)
+				}
+			}
+		case mediaitem.FieldPeople:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field people", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.People); err != nil {
+					return fmt.Errorf("unmarshal field people: %w", err)
+				}
 			}
 		case mediaitem.FieldAlbumArtist:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -371,6 +441,31 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("overview=")
 	builder.WriteString(_m.Overview)
+	builder.WriteString(", ")
+	builder.WriteString("tagline=")
+	builder.WriteString(_m.Tagline)
+	builder.WriteString(", ")
+	builder.WriteString("official_rating=")
+	builder.WriteString(_m.OfficialRating)
+	builder.WriteString(", ")
+	if v := _m.CommunityRating; v != nil {
+		builder.WriteString("community_rating=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PremiereDate; v != nil {
+		builder.WriteString("premiere_date=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("genres=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Genres))
+	builder.WriteString(", ")
+	builder.WriteString("studios=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Studios))
+	builder.WriteString(", ")
+	builder.WriteString("people=")
+	builder.WriteString(fmt.Sprintf("%v", _m.People))
 	builder.WriteString(", ")
 	builder.WriteString("album_artist=")
 	builder.WriteString(_m.AlbumArtist)
