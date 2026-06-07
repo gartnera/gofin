@@ -177,6 +177,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /livetv/programs", s.requireAuth(s.handleEmptyQuery))
 	s.mux.HandleFunc("GET /livetv/recommendedprograms", s.requireAuth(s.handleEmptyQuery))
 	s.mux.HandleFunc("GET /livetv/channels", s.requireAuth(s.handleEmptyQuery))
+
+	// Library browse facets the web client's per-library tabs request
+	// (Suggestions / Genres / Collections / TV Networks / Artists). gofin
+	// doesn't index genres, studios, or recommendations, so these return empty
+	// results — without them the client 404s and the tab fails to render.
+	s.mux.HandleFunc("GET /genres", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /musicgenres", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /studios", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /artists", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /artists/albumartists", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /shows/upcoming", s.requireAuth(s.handleEmptyQuery))
+	s.mux.HandleFunc("GET /movies/recommendations", s.requireAuth(s.handleEmptyArray))
 	// Intros and trickplay metadata: gofin has none — return empty results so
 	// the player doesn't bail out before it issues PlaybackInfo.
 	s.mux.HandleFunc("GET /users/{userId}/items/{itemId}/intros", s.requireAuth(s.handleEmptyQuery))
