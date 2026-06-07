@@ -95,3 +95,15 @@ func (s *Server) requireAuth(h http.HandlerFunc) http.HandlerFunc {
 		h(w, r.WithContext(ctx))
 	}
 }
+
+// requireAdmin wraps a handler so that only authenticated administrators may
+// reach it, returning 403 for non-admin users.
+func (s *Server) requireAdmin(h http.HandlerFunc) http.HandlerFunc {
+	return s.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if u := userFrom(r.Context()); u == nil || !u.IsAdmin {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		h(w, r)
+	})
+}

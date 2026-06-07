@@ -69,6 +69,16 @@ func Path(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldPath, v))
 }
 
+// Mtime applies equality check predicate on the "mtime" field. It's identical to MtimeEQ.
+func Mtime(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldMtime, v))
+}
+
+// Size applies equality check predicate on the "size" field. It's identical to SizeEQ.
+func Size(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldSize, v))
+}
+
 // Container applies equality check predicate on the "container" field. It's identical to ContainerEQ.
 func Container(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldContainer, v))
@@ -322,6 +332,86 @@ func PathEqualFold(v string) predicate.MediaItem {
 // PathContainsFold applies the ContainsFold predicate on the "path" field.
 func PathContainsFold(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldContainsFold(FieldPath, v))
+}
+
+// MtimeEQ applies the EQ predicate on the "mtime" field.
+func MtimeEQ(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldMtime, v))
+}
+
+// MtimeNEQ applies the NEQ predicate on the "mtime" field.
+func MtimeNEQ(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldMtime, v))
+}
+
+// MtimeIn applies the In predicate on the "mtime" field.
+func MtimeIn(vs ...int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldMtime, vs...))
+}
+
+// MtimeNotIn applies the NotIn predicate on the "mtime" field.
+func MtimeNotIn(vs ...int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldMtime, vs...))
+}
+
+// MtimeGT applies the GT predicate on the "mtime" field.
+func MtimeGT(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldMtime, v))
+}
+
+// MtimeGTE applies the GTE predicate on the "mtime" field.
+func MtimeGTE(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldMtime, v))
+}
+
+// MtimeLT applies the LT predicate on the "mtime" field.
+func MtimeLT(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldMtime, v))
+}
+
+// MtimeLTE applies the LTE predicate on the "mtime" field.
+func MtimeLTE(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldMtime, v))
+}
+
+// SizeEQ applies the EQ predicate on the "size" field.
+func SizeEQ(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldSize, v))
+}
+
+// SizeNEQ applies the NEQ predicate on the "size" field.
+func SizeNEQ(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldSize, v))
+}
+
+// SizeIn applies the In predicate on the "size" field.
+func SizeIn(vs ...int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldSize, vs...))
+}
+
+// SizeNotIn applies the NotIn predicate on the "size" field.
+func SizeNotIn(vs ...int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldSize, vs...))
+}
+
+// SizeGT applies the GT predicate on the "size" field.
+func SizeGT(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldSize, v))
+}
+
+// SizeGTE applies the GTE predicate on the "size" field.
+func SizeGTE(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldSize, v))
+}
+
+// SizeLT applies the LT predicate on the "size" field.
+func SizeLT(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldSize, v))
+}
+
+// SizeLTE applies the LTE predicate on the "size" field.
+func SizeLTE(v int64) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldSize, v))
 }
 
 // ContainerEQ applies the EQ predicate on the "container" field.

@@ -53,6 +53,8 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "sort_name", Type: field.TypeString, Default: ""},
 		{Name: "path", Type: field.TypeString, Default: ""},
+		{Name: "mtime", Type: field.TypeInt64, Default: 0},
+		{Name: "size", Type: field.TypeInt64, Default: 0},
 		{Name: "container", Type: field.TypeString, Default: ""},
 		{Name: "run_time_ticks", Type: field.TypeInt64, Default: 0},
 		{Name: "production_year", Type: field.TypeInt32, Nullable: true},
@@ -73,15 +75,22 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "media_items_libraries_items",
-				Columns:    []*schema.Column{MediaItemsColumns[14]},
+				Columns:    []*schema.Column{MediaItemsColumns[16]},
 				RefColumns: []*schema.Column{LibrariesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "media_items_media_items_children",
-				Columns:    []*schema.Column{MediaItemsColumns[15]},
+				Columns:    []*schema.Column{MediaItemsColumns[17]},
 				RefColumns: []*schema.Column{MediaItemsColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mediaitem_path",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[4]},
 			},
 		},
 	}

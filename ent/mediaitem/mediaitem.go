@@ -23,6 +23,10 @@ const (
 	FieldSortName = "sort_name"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
+	// FieldMtime holds the string denoting the mtime field in the database.
+	FieldMtime = "mtime"
+	// FieldSize holds the string denoting the size field in the database.
+	FieldSize = "size"
 	// FieldContainer holds the string denoting the container field in the database.
 	FieldContainer = "container"
 	// FieldRunTimeTicks holds the string denoting the run_time_ticks field in the database.
@@ -82,6 +86,8 @@ var Columns = []string{
 	FieldName,
 	FieldSortName,
 	FieldPath,
+	FieldMtime,
+	FieldSize,
 	FieldContainer,
 	FieldRunTimeTicks,
 	FieldProductionYear,
@@ -122,6 +128,10 @@ var (
 	DefaultSortName string
 	// DefaultPath holds the default value on creation for the "path" field.
 	DefaultPath string
+	// DefaultMtime holds the default value on creation for the "mtime" field.
+	DefaultMtime int64
+	// DefaultSize holds the default value on creation for the "size" field.
+	DefaultSize int64
 	// DefaultContainer holds the default value on creation for the "container" field.
 	DefaultContainer string
 	// DefaultRunTimeTicks holds the default value on creation for the "run_time_ticks" field.
@@ -190,6 +200,16 @@ func BySortName(opts ...sql.OrderTermOption) OrderOption {
 // ByPath orders the results by the path field.
 func ByPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPath, opts...).ToFunc()
+}
+
+// ByMtime orders the results by the mtime field.
+func ByMtime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMtime, opts...).ToFunc()
+}
+
+// BySize orders the results by the size field.
+func BySize(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSize, opts...).ToFunc()
 }
 
 // ByContainer orders the results by the container field.

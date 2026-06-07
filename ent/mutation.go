@@ -1243,6 +1243,10 @@ type MediaItemMutation struct {
 	name                   *string
 	sort_name              *string
 	_path                  *string
+	mtime                  *int64
+	addmtime               *int64
+	size                   *int64
+	addsize                *int64
 	container              *string
 	run_time_ticks         *int64
 	addrun_time_ticks      *int64
@@ -1519,6 +1523,118 @@ func (m *MediaItemMutation) OldPath(ctx context.Context) (v string, err error) {
 // ResetPath resets all changes to the "path" field.
 func (m *MediaItemMutation) ResetPath() {
 	m._path = nil
+}
+
+// SetMtime sets the "mtime" field.
+func (m *MediaItemMutation) SetMtime(i int64) {
+	m.mtime = &i
+	m.addmtime = nil
+}
+
+// Mtime returns the value of the "mtime" field in the mutation.
+func (m *MediaItemMutation) Mtime() (r int64, exists bool) {
+	v := m.mtime
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMtime returns the old "mtime" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldMtime(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMtime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMtime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMtime: %w", err)
+	}
+	return oldValue.Mtime, nil
+}
+
+// AddMtime adds i to the "mtime" field.
+func (m *MediaItemMutation) AddMtime(i int64) {
+	if m.addmtime != nil {
+		*m.addmtime += i
+	} else {
+		m.addmtime = &i
+	}
+}
+
+// AddedMtime returns the value that was added to the "mtime" field in this mutation.
+func (m *MediaItemMutation) AddedMtime() (r int64, exists bool) {
+	v := m.addmtime
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMtime resets all changes to the "mtime" field.
+func (m *MediaItemMutation) ResetMtime() {
+	m.mtime = nil
+	m.addmtime = nil
+}
+
+// SetSize sets the "size" field.
+func (m *MediaItemMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *MediaItemMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *MediaItemMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *MediaItemMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *MediaItemMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
 }
 
 // SetContainer sets the "container" field.
@@ -2216,7 +2332,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 15)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2228,6 +2344,12 @@ func (m *MediaItemMutation) Fields() []string {
 	}
 	if m._path != nil {
 		fields = append(fields, mediaitem.FieldPath)
+	}
+	if m.mtime != nil {
+		fields = append(fields, mediaitem.FieldMtime)
+	}
+	if m.size != nil {
+		fields = append(fields, mediaitem.FieldSize)
 	}
 	if m.container != nil {
 		fields = append(fields, mediaitem.FieldContainer)
@@ -2272,6 +2394,10 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.SortName()
 	case mediaitem.FieldPath:
 		return m.Path()
+	case mediaitem.FieldMtime:
+		return m.Mtime()
+	case mediaitem.FieldSize:
+		return m.Size()
 	case mediaitem.FieldContainer:
 		return m.Container()
 	case mediaitem.FieldRunTimeTicks:
@@ -2307,6 +2433,10 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldSortName(ctx)
 	case mediaitem.FieldPath:
 		return m.OldPath(ctx)
+	case mediaitem.FieldMtime:
+		return m.OldMtime(ctx)
+	case mediaitem.FieldSize:
+		return m.OldSize(ctx)
 	case mediaitem.FieldContainer:
 		return m.OldContainer(ctx)
 	case mediaitem.FieldRunTimeTicks:
@@ -2361,6 +2491,20 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPath(v)
+		return nil
+	case mediaitem.FieldMtime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMtime(v)
+		return nil
+	case mediaitem.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
 		return nil
 	case mediaitem.FieldContainer:
 		v, ok := value.(string)
@@ -2433,6 +2577,12 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *MediaItemMutation) AddedFields() []string {
 	var fields []string
+	if m.addmtime != nil {
+		fields = append(fields, mediaitem.FieldMtime)
+	}
+	if m.addsize != nil {
+		fields = append(fields, mediaitem.FieldSize)
+	}
 	if m.addrun_time_ticks != nil {
 		fields = append(fields, mediaitem.FieldRunTimeTicks)
 	}
@@ -2453,6 +2603,10 @@ func (m *MediaItemMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *MediaItemMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case mediaitem.FieldMtime:
+		return m.AddedMtime()
+	case mediaitem.FieldSize:
+		return m.AddedSize()
 	case mediaitem.FieldRunTimeTicks:
 		return m.AddedRunTimeTicks()
 	case mediaitem.FieldProductionYear:
@@ -2470,6 +2624,20 @@ func (m *MediaItemMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *MediaItemMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case mediaitem.FieldMtime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMtime(v)
+		return nil
+	case mediaitem.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
 	case mediaitem.FieldRunTimeTicks:
 		v, ok := value.(int64)
 		if !ok {
@@ -2563,6 +2731,12 @@ func (m *MediaItemMutation) ResetField(name string) error {
 		return nil
 	case mediaitem.FieldPath:
 		m.ResetPath()
+		return nil
+	case mediaitem.FieldMtime:
+		m.ResetMtime()
+		return nil
+	case mediaitem.FieldSize:
+		m.ResetSize()
 		return nil
 	case mediaitem.FieldContainer:
 		m.ResetContainer()

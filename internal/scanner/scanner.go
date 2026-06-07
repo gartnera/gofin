@@ -3,9 +3,10 @@ package scanner
 import (
 	"context"
 	"fmt"
-	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/library"
@@ -28,6 +29,9 @@ var audioExts = map[string]bool{
 type Scanner struct {
 	client *ent.Client
 	prober probe.Prober
+	// mu serialises index mutations so that a full library scan and the
+	// filesystem watcher cannot race when creating shared folder rows.
+	mu sync.Mutex
 }
 
 // Option configures a Scanner.
@@ -88,41 +92,144 @@ func (s *Scanner) EnsureLibrary(ctx context.Context, name, typ, path string) (*e
 	}
 }
 
-// ScanLibrary walks a library's directory and indexes its media, dispatching
-// on the library's declared type.
-func (s *Scanner) ScanLibrary(ctx context.Context, lib *ent.Library) error {
-	switch lib.Type {
+type indexFunc func(ctx context.Context, lib *ent.Library, path string, info os.FileInfo) error
+
+// dispatch returns the media extensions and index function for a library type.
+func (s *Scanner) dispatch(typ library.Type) (map[string]bool, indexFunc, error) {
+	switch typ {
 	case library.TypeMovies:
-		return s.walk(ctx, lib, videoExts, s.indexMovie)
+		return videoExts, s.indexMovie, nil
 	case library.TypeTvshows:
-		return s.walk(ctx, lib, videoExts, s.indexEpisode)
+		return videoExts, s.indexEpisode, nil
 	case library.TypeMusic:
-		return s.walk(ctx, lib, audioExts, s.indexAudio)
+		return audioExts, s.indexAudio, nil
 	default:
-		return fmt.Errorf("unknown library type %q", lib.Type)
+		return nil, nil, fmt.Errorf("unknown library type %q", typ)
 	}
 }
 
-type indexFunc func(ctx context.Context, lib *ent.Library, path string) error
+// ScanLibrary walks a library's directory and indexes its media, dispatching on
+// the library's declared type. Files already indexed and unchanged on disk are
+// skipped; items whose backing files have disappeared are pruned.
+func (s *Scanner) ScanLibrary(ctx context.Context, lib *ent.Library) error {
+	exts, fn, err := s.dispatch(lib.Type)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.walk(ctx, lib, lib.Path, exts, fn, nil); err != nil {
+		return err
+	}
+	return s.prune(ctx, lib)
+}
 
-// walk traverses the library root and invokes fn for each file whose extension
-// is in exts.
-func (s *Scanner) walk(ctx context.Context, lib *ent.Library, exts map[string]bool, fn indexFunc) error {
-	return filepath.WalkDir(lib.Path, func(path string, d fs.DirEntry, err error) error {
+// Index indexes (or re-indexes) a single file discovered by the watcher. It is
+// safe to call concurrently with ScanLibrary. Files outside the library type's
+// extensions or excluded by a .ignore file are silently skipped.
+func (s *Scanner) Index(ctx context.Context, lib *ent.Library, path string) error {
+	exts, fn, err := s.dispatch(lib.Type)
+	if err != nil {
+		return err
+	}
+	if !exts[strings.ToLower(filepath.Ext(path))] {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.isIgnored(lib, path) {
+		return nil
+	}
+	return fn(ctx, lib, path, info)
+}
+
+// walk recursively traverses dir, honouring .ignore files, and invokes fn for
+// each file whose extension is in exts. matchers carries the .ignore rules
+// inherited from ancestor directories.
+func (s *Scanner) walk(ctx context.Context, lib *ent.Library, dir string, exts map[string]bool, fn indexFunc, matchers []ignoreMatcher) error {
+	m, skipAll, err := loadIgnore(dir)
+	if err != nil {
+		return err
+	}
+	if skipAll {
+		return nil
+	}
+	if m != nil {
+		// Copy so sibling recursions don't observe each other's appends.
+		next := make([]ignoreMatcher, len(matchers), len(matchers)+1)
+		copy(next, matchers)
+		matchers = append(next, *m)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		full := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			if ignored(matchers, full, true) {
+				continue
+			}
+			if err := s.walk(ctx, lib, full, exts, fn, matchers); err != nil {
+				return err
+			}
+			continue
+		}
+		if !exts[strings.ToLower(filepath.Ext(full))] {
+			continue
+		}
+		if ignored(matchers, full, false) {
+			continue
+		}
+		info, err := e.Info()
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil
+		if err := fn(ctx, lib, full, info); err != nil {
+			return fmt.Errorf("index %q: %w", full, err)
 		}
-		if !exts[strings.ToLower(filepath.Ext(path))] {
-			return nil
+	}
+	return nil
+}
+
+// isIgnored reports whether path is excluded by a .ignore file anywhere between
+// the library root and the file's own directory.
+func (s *Scanner) isIgnored(lib *ent.Library, path string) bool {
+	rel, err := filepath.Rel(lib.Path, path)
+	if err != nil {
+		return false
+	}
+	var matchers []ignoreMatcher
+	dir := lib.Path
+	// Walk from the library root down to (but not including) the file itself.
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	for i := 0; i < len(parts); i++ {
+		m, skipAll, err := loadIgnore(dir)
+		if err == nil {
+			if skipAll {
+				return true
+			}
+			if m != nil {
+				matchers = append(matchers, *m)
+			}
 		}
-		if err := fn(ctx, lib, path); err != nil {
-			return fmt.Errorf("index %q: %w", path, err)
+		if i == len(parts)-1 {
+			break
 		}
-		return nil
-	})
+		dir = filepath.Join(dir, parts[i])
+		if ignored(matchers, dir, true) {
+			return true
+		}
+	}
+	return ignored(matchers, path, false)
 }
 
 // containerOf returns the lowercase extension without the leading dot.
@@ -172,4 +279,88 @@ func (s *Scanner) existingByPath(ctx context.Context, path string) (*ent.MediaIt
 		return nil, nil
 	}
 	return it, err
+}
+
+// unchanged reports whether an already-indexed item matches the file's current
+// size and modification time, in which case it can be skipped without probing.
+func unchanged(it *ent.MediaItem, info os.FileInfo) bool {
+	return it != nil && it.Size == info.Size() && it.Mtime == info.ModTime().UnixNano()
+}
+
+// RefreshItem forces a re-probe and re-index of a single item by clearing its
+// stored mtime so the change check fails, then re-indexing the file.
+func (s *Scanner) RefreshItem(ctx context.Context, item *ent.MediaItem) error {
+	if item.Path == "" {
+		return nil
+	}
+	lib, err := item.QueryLibrary().Only(ctx)
+	if err != nil {
+		return err
+	}
+	if err := item.Update().SetMtime(0).Exec(ctx); err != nil {
+		return err
+	}
+	return s.Index(ctx, lib, item.Path)
+}
+
+// RemovePath deletes the item backed by the given file path, if any.
+func (s *Scanner) RemovePath(ctx context.Context, path string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.client.MediaItem.Delete().Where(mediaitem.PathEQ(path)).Exec(ctx)
+	return err
+}
+
+// RemovePrefix deletes every playable item whose file lives under dir (used when
+// a directory is removed from disk).
+func (s *Scanner) RemovePrefix(ctx context.Context, dir string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := strings.TrimSuffix(dir, string(filepath.Separator)) + string(filepath.Separator)
+	_, err := s.client.MediaItem.Delete().Where(mediaitem.PathHasPrefix(prefix)).Exec(ctx)
+	return err
+}
+
+// prune removes items whose backing files have disappeared, then drops any
+// folder items left without children. Caller must hold s.mu.
+func (s *Scanner) prune(ctx context.Context, lib *ent.Library) error {
+	playable, err := s.client.MediaItem.Query().
+		Where(mediaitem.HasLibraryWith(library.ID(lib.ID)), mediaitem.PathNEQ("")).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, it := range playable {
+		if _, statErr := os.Stat(it.Path); os.IsNotExist(statErr) {
+			if err := s.client.MediaItem.DeleteOne(it).Exec(ctx); err != nil {
+				return err
+			}
+		}
+	}
+	// Repeatedly drop empty folders so that, e.g., an emptied season is removed
+	// before its now-childless series.
+	for {
+		folders, err := s.client.MediaItem.Query().
+			Where(mediaitem.HasLibraryWith(library.ID(lib.ID)), mediaitem.PathEQ("")).
+			All(ctx)
+		if err != nil {
+			return err
+		}
+		removed := 0
+		for _, f := range folders {
+			n, err := f.QueryChildren().Count(ctx)
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				if err := s.client.MediaItem.DeleteOne(f).Exec(ctx); err != nil {
+					return err
+				}
+				removed++
+			}
+		}
+		if removed == 0 {
+			return nil
+		}
+	}
 }

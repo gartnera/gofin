@@ -55,7 +55,15 @@ func readTrackMeta(path string) trackMeta {
 
 // indexAudio indexes an audio file in a music library, deriving its
 // MusicArtist and MusicAlbum parents.
-func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string) error {
+func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string, info os.FileInfo) error {
+	existing, err := s.existingByPath(ctx, path)
+	if err != nil {
+		return err
+	}
+	if unchanged(existing, info) {
+		return nil
+	}
+
 	meta := readTrackMeta(path)
 
 	artist, err := s.findOrCreateFolder(ctx, lib, mediaitem.KindMusicArtist, meta.Artist, nil)
@@ -74,16 +82,14 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string)
 
 	probed := s.probeFile(ctx, path)
 
-	existing, err := s.existingByPath(ctx, path)
-	if err != nil {
-		return err
-	}
 	if existing != nil {
 		upd := existing.Update().
 			SetName(meta.Title).
 			SetContainer(containerOf(path)).
 			SetRunTimeTicks(probed.RunTimeTicks).
 			SetMediaStreams(probed.Streams).
+			SetMtime(info.ModTime().UnixNano()).
+			SetSize(info.Size()).
 			SetAlbumArtist(meta.Artist).
 			SetParentID(album.ID)
 		if meta.Track != nil {
@@ -100,6 +106,8 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string)
 		SetContainer(containerOf(path)).
 		SetRunTimeTicks(probed.RunTimeTicks).
 		SetMediaStreams(probed.Streams).
+		SetMtime(info.ModTime().UnixNano()).
+		SetSize(info.Size()).
 		SetAlbumArtist(meta.Artist).
 		SetLibrary(lib).
 		SetParentID(album.ID)

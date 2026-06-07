@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/scanner"
 	"github.com/gartnera/gofin/internal/server"
+	"github.com/gartnera/gofin/internal/watch"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +27,34 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 			}
 			defer client.Close()
 
-			srv := server.New(client, cfg.ServerName)
+			// Share one scanner between the HTTP refresh endpoints and the
+			// filesystem watcher so their index mutations stay serialised.
+			sc := scanner.New(client)
+			libs := make([]*ent.Library, 0, len(cfg.Libraries))
+			for _, libCfg := range cfg.Libraries {
+				lib, err := sc.EnsureLibrary(cmd.Context(), libCfg.Name, libCfg.Type, libCfg.Path)
+				if err != nil {
+					return fmt.Errorf("library %q: %w", libCfg.Name, err)
+				}
+				// Initial scan picks up changes since the last run; unchanged
+				// files are skipped via the mtime/size check.
+				if err := sc.ScanLibrary(cmd.Context(), lib); err != nil {
+					return fmt.Errorf("scan %q: %w", libCfg.Name, err)
+				}
+				libs = append(libs, lib)
+			}
+
+			w, err := watch.New(sc, libs)
+			if err != nil {
+				return fmt.Errorf("start watcher: %w", err)
+			}
+			go func() {
+				if err := w.Run(cmd.Context()); err != nil && cmd.Context().Err() == nil {
+					fmt.Printf("watcher stopped: %v\n", err)
+				}
+			}()
+
+			srv := server.New(client, cfg.ServerName, server.WithScanner(sc))
 			fmt.Printf("gofin listening on %s\n", cfg.Listen)
 			return http.ListenAndServe(cfg.Listen, srv)
 		},

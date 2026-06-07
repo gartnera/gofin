@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gartnera/gofin/ent"
+	"github.com/gartnera/gofin/internal/scanner"
 )
 
 // Version is the reported server version.
@@ -20,16 +21,33 @@ type Server struct {
 	client     *ent.Client
 	serverName string
 	serverID   string
+	scanner    *scanner.Scanner
 	mux        *http.ServeMux
 }
 
+// Option configures a Server.
+type Option func(*Server)
+
+// WithScanner injects the scanner used to service library refresh requests,
+// allowing it to be shared with a filesystem watcher. When omitted, the server
+// constructs its own scanner backed by the same client.
+func WithScanner(sc *scanner.Scanner) Option {
+	return func(s *Server) { s.scanner = sc }
+}
+
 // New constructs a Server and registers its routes.
-func New(client *ent.Client, serverName string) *Server {
+func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	s := &Server{
 		client:     client,
 		serverName: serverName,
 		serverID:   deriveServerID(serverName),
 		mux:        http.NewServeMux(),
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	if s.scanner == nil {
+		s.scanner = scanner.New(client)
 	}
 	s.routes()
 	return s
@@ -65,6 +83,10 @@ func (s *Server) routes() {
 	// Library views.
 	s.mux.HandleFunc("GET /UserViews", s.requireAuth(s.handleUserViews))
 	s.mux.HandleFunc("GET /Users/{userId}/Views", s.requireAuth(s.handleUserViews))
+
+	// Library scan / item refresh (admin only).
+	s.mux.HandleFunc("POST /Library/Refresh", s.requireAdmin(s.handleRefreshLibraries))
+	s.mux.HandleFunc("POST /Items/{itemId}/Refresh", s.requireAdmin(s.handleRefreshItem))
 
 	// Items.
 	s.mux.HandleFunc("GET /Items", s.requireAuth(s.handleItems))

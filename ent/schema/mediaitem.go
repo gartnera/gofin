@@ -4,6 +4,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
 )
@@ -30,6 +31,12 @@ func (MediaItem) Fields() []ent.Field {
 		// path is the absolute file path for playable items; empty for folders.
 		field.String("path").
 			Default(""),
+		// mtime and size capture the on-disk state at index time so a rescan can
+		// skip files that have not changed (avoiding a re-probe).
+		field.Int64("mtime").
+			Default(0),
+		field.Int64("size").
+			Default(0),
 		field.String("container").
 			Default(""),
 		field.Int64("run_time_ticks").
@@ -72,5 +79,8 @@ func (MediaItem) Edges() []ent.Edge {
 
 // Indexes of the MediaItem.
 func (MediaItem) Indexes() []ent.Index {
-	return nil
+	return []ent.Index{
+		// path is the dedup lookup key for playable items during scans.
+		index.Fields("path"),
+	}
 }

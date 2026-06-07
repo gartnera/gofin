@@ -28,6 +28,10 @@ type MediaItem struct {
 	SortName string `json:"sort_name,omitempty"`
 	// Path holds the value of the "path" field.
 	Path string `json:"path,omitempty"`
+	// Mtime holds the value of the "mtime" field.
+	Mtime int64 `json:"mtime,omitempty"`
+	// Size holds the value of the "size" field.
+	Size int64 `json:"size,omitempty"`
 	// Container holds the value of the "container" field.
 	Container string `json:"container,omitempty"`
 	// RunTimeTicks holds the value of the "run_time_ticks" field.
@@ -116,7 +120,7 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case mediaitem.FieldMediaStreams:
 			values[i] = new([]byte)
-		case mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldParentIndexNumber:
+		case mediaitem.FieldMtime, mediaitem.FieldSize, mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldParentIndexNumber:
 			values[i] = new(sql.NullInt64)
 		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
 			values[i] = new(sql.NullString)
@@ -170,6 +174,18 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field path", values[i])
 			} else if value.Valid {
 				_m.Path = value.String
+			}
+		case mediaitem.FieldMtime:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field mtime", values[i])
+			} else if value.Valid {
+				_m.Mtime = value.Int64
+			}
+		case mediaitem.FieldSize:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field size", values[i])
+			} else if value.Valid {
+				_m.Size = value.Int64
 			}
 		case mediaitem.FieldContainer:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -311,6 +327,12 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
+	builder.WriteString(", ")
+	builder.WriteString("mtime=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Mtime))
+	builder.WriteString(", ")
+	builder.WriteString("size=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Size))
 	builder.WriteString(", ")
 	builder.WriteString("container=")
 	builder.WriteString(_m.Container)

@@ -88,6 +88,48 @@ func (_u *MediaItemUpdate) SetNillablePath(v *string) *MediaItemUpdate {
 	return _u
 }
 
+// SetMtime sets the "mtime" field.
+func (_u *MediaItemUpdate) SetMtime(v int64) *MediaItemUpdate {
+	_u.mutation.ResetMtime()
+	_u.mutation.SetMtime(v)
+	return _u
+}
+
+// SetNillableMtime sets the "mtime" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableMtime(v *int64) *MediaItemUpdate {
+	if v != nil {
+		_u.SetMtime(*v)
+	}
+	return _u
+}
+
+// AddMtime adds value to the "mtime" field.
+func (_u *MediaItemUpdate) AddMtime(v int64) *MediaItemUpdate {
+	_u.mutation.AddMtime(v)
+	return _u
+}
+
+// SetSize sets the "size" field.
+func (_u *MediaItemUpdate) SetSize(v int64) *MediaItemUpdate {
+	_u.mutation.ResetSize()
+	_u.mutation.SetSize(v)
+	return _u
+}
+
+// SetNillableSize sets the "size" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableSize(v *int64) *MediaItemUpdate {
+	if v != nil {
+		_u.SetSize(*v)
+	}
+	return _u
+}
+
+// AddSize adds value to the "size" field.
+func (_u *MediaItemUpdate) AddSize(v int64) *MediaItemUpdate {
+	_u.mutation.AddSize(v)
+	return _u
+}
+
 // SetContainer sets the "container" field.
 func (_u *MediaItemUpdate) SetContainer(v string) *MediaItemUpdate {
 	_u.mutation.SetContainer(v)
@@ -457,6 +499,18 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(mediaitem.FieldPath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Mtime(); ok {
+		_spec.SetField(mediaitem.FieldMtime, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedMtime(); ok {
+		_spec.AddField(mediaitem.FieldMtime, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Size(); ok {
+		_spec.SetField(mediaitem.FieldSize, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSize(); ok {
+		_spec.AddField(mediaitem.FieldSize, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Container(); ok {
 		_spec.SetField(mediaitem.FieldContainer, field.TypeString, value)
 	}
@@ -734,6 +788,48 @@ func (_u *MediaItemUpdateOne) SetNillablePath(v *string) *MediaItemUpdateOne {
 	if v != nil {
 		_u.SetPath(*v)
 	}
+	return _u
+}
+
+// SetMtime sets the "mtime" field.
+func (_u *MediaItemUpdateOne) SetMtime(v int64) *MediaItemUpdateOne {
+	_u.mutation.ResetMtime()
+	_u.mutation.SetMtime(v)
+	return _u
+}
+
+// SetNillableMtime sets the "mtime" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableMtime(v *int64) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetMtime(*v)
+	}
+	return _u
+}
+
+// AddMtime adds value to the "mtime" field.
+func (_u *MediaItemUpdateOne) AddMtime(v int64) *MediaItemUpdateOne {
+	_u.mutation.AddMtime(v)
+	return _u
+}
+
+// SetSize sets the "size" field.
+func (_u *MediaItemUpdateOne) SetSize(v int64) *MediaItemUpdateOne {
+	_u.mutation.ResetSize()
+	_u.mutation.SetSize(v)
+	return _u
+}
+
+// SetNillableSize sets the "size" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableSize(v *int64) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetSize(*v)
+	}
+	return _u
+}
+
+// AddSize adds value to the "size" field.
+func (_u *MediaItemUpdateOne) AddSize(v int64) *MediaItemUpdateOne {
+	_u.mutation.AddSize(v)
 	return _u
 }
 
@@ -1135,6 +1231,18 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(mediaitem.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Mtime(); ok {
+		_spec.SetField(mediaitem.FieldMtime, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedMtime(); ok {
+		_spec.AddField(mediaitem.FieldMtime, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.Size(); ok {
+		_spec.SetField(mediaitem.FieldSize, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSize(); ok {
+		_spec.AddField(mediaitem.FieldSize, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Container(); ok {
 		_spec.SetField(mediaitem.FieldContainer, field.TypeString, value)

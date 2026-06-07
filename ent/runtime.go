@@ -72,24 +72,32 @@ func init() {
 	mediaitemDescPath := mediaitemFields[4].Descriptor()
 	// mediaitem.DefaultPath holds the default value on creation for the path field.
 	mediaitem.DefaultPath = mediaitemDescPath.Default.(string)
+	// mediaitemDescMtime is the schema descriptor for mtime field.
+	mediaitemDescMtime := mediaitemFields[5].Descriptor()
+	// mediaitem.DefaultMtime holds the default value on creation for the mtime field.
+	mediaitem.DefaultMtime = mediaitemDescMtime.Default.(int64)
+	// mediaitemDescSize is the schema descriptor for size field.
+	mediaitemDescSize := mediaitemFields[6].Descriptor()
+	// mediaitem.DefaultSize holds the default value on creation for the size field.
+	mediaitem.DefaultSize = mediaitemDescSize.Default.(int64)
 	// mediaitemDescContainer is the schema descriptor for container field.
-	mediaitemDescContainer := mediaitemFields[5].Descriptor()
+	mediaitemDescContainer := mediaitemFields[7].Descriptor()
 	// mediaitem.DefaultContainer holds the default value on creation for the container field.
 	mediaitem.DefaultContainer = mediaitemDescContainer.Default.(string)
 	// mediaitemDescRunTimeTicks is the schema descriptor for run_time_ticks field.
-	mediaitemDescRunTimeTicks := mediaitemFields[6].Descriptor()
+	mediaitemDescRunTimeTicks := mediaitemFields[8].Descriptor()
 	// mediaitem.DefaultRunTimeTicks holds the default value on creation for the run_time_ticks field.
 	mediaitem.DefaultRunTimeTicks = mediaitemDescRunTimeTicks.Default.(int64)
 	// mediaitemDescOverview is the schema descriptor for overview field.
-	mediaitemDescOverview := mediaitemFields[10].Descriptor()
+	mediaitemDescOverview := mediaitemFields[12].Descriptor()
 	// mediaitem.DefaultOverview holds the default value on creation for the overview field.
 	mediaitem.DefaultOverview = mediaitemDescOverview.Default.(string)
 	// mediaitemDescAlbumArtist is the schema descriptor for album_artist field.
-	mediaitemDescAlbumArtist := mediaitemFields[11].Descriptor()
+	mediaitemDescAlbumArtist := mediaitemFields[13].Descriptor()
 	// mediaitem.DefaultAlbumArtist holds the default value on creation for the album_artist field.
 	mediaitem.DefaultAlbumArtist = mediaitemDescAlbumArtist.Default.(string)
 	// mediaitemDescImagePath is the schema descriptor for image_path field.
-	mediaitemDescImagePath := mediaitemFields[12].Descriptor()
+	mediaitemDescImagePath := mediaitemFields[14].Descriptor()
 	// mediaitem.DefaultImagePath holds the default value on creation for the image_path field.
 	mediaitem.DefaultImagePath = mediaitemDescImagePath.Default.(string)
 	// mediaitemDescID is the schema descriptor for id field.

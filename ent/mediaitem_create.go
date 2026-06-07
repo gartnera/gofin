@@ -63,6 +63,34 @@ func (_c *MediaItemCreate) SetNillablePath(v *string) *MediaItemCreate {
 	return _c
 }
 
+// SetMtime sets the "mtime" field.
+func (_c *MediaItemCreate) SetMtime(v int64) *MediaItemCreate {
+	_c.mutation.SetMtime(v)
+	return _c
+}
+
+// SetNillableMtime sets the "mtime" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableMtime(v *int64) *MediaItemCreate {
+	if v != nil {
+		_c.SetMtime(*v)
+	}
+	return _c
+}
+
+// SetSize sets the "size" field.
+func (_c *MediaItemCreate) SetSize(v int64) *MediaItemCreate {
+	_c.mutation.SetSize(v)
+	return _c
+}
+
+// SetNillableSize sets the "size" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableSize(v *int64) *MediaItemCreate {
+	if v != nil {
+		_c.SetSize(*v)
+	}
+	return _c
+}
+
 // SetContainer sets the "container" field.
 func (_c *MediaItemCreate) SetContainer(v string) *MediaItemCreate {
 	_c.mutation.SetContainer(v)
@@ -306,6 +334,14 @@ func (_c *MediaItemCreate) defaults() {
 		v := mediaitem.DefaultPath
 		_c.mutation.SetPath(v)
 	}
+	if _, ok := _c.mutation.Mtime(); !ok {
+		v := mediaitem.DefaultMtime
+		_c.mutation.SetMtime(v)
+	}
+	if _, ok := _c.mutation.Size(); !ok {
+		v := mediaitem.DefaultSize
+		_c.mutation.SetSize(v)
+	}
 	if _, ok := _c.mutation.Container(); !ok {
 		v := mediaitem.DefaultContainer
 		_c.mutation.SetContainer(v)
@@ -355,6 +391,12 @@ func (_c *MediaItemCreate) check() error {
 	}
 	if _, ok := _c.mutation.Path(); !ok {
 		return &ValidationError{Name: "path", err: errors.New(`ent: missing required field "MediaItem.path"`)}
+	}
+	if _, ok := _c.mutation.Mtime(); !ok {
+		return &ValidationError{Name: "mtime", err: errors.New(`ent: missing required field "MediaItem.mtime"`)}
+	}
+	if _, ok := _c.mutation.Size(); !ok {
+		return &ValidationError{Name: "size", err: errors.New(`ent: missing required field "MediaItem.size"`)}
 	}
 	if _, ok := _c.mutation.Container(); !ok {
 		return &ValidationError{Name: "container", err: errors.New(`ent: missing required field "MediaItem.container"`)}
@@ -421,6 +463,14 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Path(); ok {
 		_spec.SetField(mediaitem.FieldPath, field.TypeString, value)
 		_node.Path = value
+	}
+	if value, ok := _c.mutation.Mtime(); ok {
+		_spec.SetField(mediaitem.FieldMtime, field.TypeInt64, value)
+		_node.Mtime = value
+	}
+	if value, ok := _c.mutation.Size(); ok {
+		_spec.SetField(mediaitem.FieldSize, field.TypeInt64, value)
+		_node.Size = value
 	}
 	if value, ok := _c.mutation.Container(); ok {
 		_spec.SetField(mediaitem.FieldContainer, field.TypeString, value)
