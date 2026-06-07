@@ -71,20 +71,25 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 	probed := s.probeFile(ctx, path)
 
 	if existing != nil {
+		// Always refresh on-disk/probe facts; preserve locked metadata edits.
 		upd := existing.Update().
-			SetName(title).
 			SetContainer(containerOf(path)).
 			SetRunTimeTicks(probed.RunTimeTicks).
 			SetMediaStreams(probed.Streams).
 			SetMtime(info.ModTime().UnixNano()).
 			SetSize(info.Size()).
-			SetIndexNumber(parsed.Episode).
-			SetParentIndexNumber(parsed.Season).
 			SetParentID(season.ID)
-		if parsed.EndEpisode != nil {
-			upd = upd.SetIndexNumberEnd(*parsed.EndEpisode)
-		} else {
-			upd = upd.ClearIndexNumberEnd()
+		if !metaLocked(existing, "Name") {
+			upd = upd.SetName(title)
+		}
+		if !metaLocked(existing, "IndexNumber") {
+			upd = upd.SetIndexNumber(parsed.Episode).
+				SetParentIndexNumber(parsed.Season)
+			if parsed.EndEpisode != nil {
+				upd = upd.SetIndexNumberEnd(*parsed.EndEpisode)
+			} else {
+				upd = upd.ClearIndexNumberEnd()
+			}
 		}
 		if err := upd.Exec(ctx); err != nil {
 			return err

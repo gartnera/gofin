@@ -72,6 +72,8 @@ var (
 		{Name: "album_artist", Type: field.TypeString, Default: ""},
 		{Name: "image_path", Type: field.TypeString, Default: ""},
 		{Name: "media_streams", Type: field.TypeJSON, Nullable: true},
+		{Name: "lock_data", Type: field.TypeBool, Default: false},
+		{Name: "locked_fields", Type: field.TypeJSON, Nullable: true},
 		{Name: "library_items", Type: field.TypeUUID, Nullable: true},
 		{Name: "media_item_children", Type: field.TypeUUID, Nullable: true},
 	}
@@ -83,13 +85,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "media_items_libraries_items",
-				Columns:    []*schema.Column{MediaItemsColumns[24]},
+				Columns:    []*schema.Column{MediaItemsColumns[26]},
 				RefColumns: []*schema.Column{LibrariesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "media_items_media_items_children",
-				Columns:    []*schema.Column{MediaItemsColumns[25]},
+				Columns:    []*schema.Column{MediaItemsColumns[27]},
 				RefColumns: []*schema.Column{MediaItemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

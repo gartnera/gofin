@@ -146,6 +146,11 @@ func ImagePath(v string) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldImagePath, v))
 }
 
+// LockData applies equality check predicate on the "lock_data" field. It's identical to LockDataEQ.
+func LockData(v bool) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldLockData, v))
+}
+
 // KindEQ applies the EQ predicate on the "kind" field.
 func KindEQ(v Kind) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldKind, v))
@@ -1209,6 +1214,26 @@ func MediaStreamsIsNil() predicate.MediaItem {
 // MediaStreamsNotNil applies the NotNil predicate on the "media_streams" field.
 func MediaStreamsNotNil() predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldNotNull(FieldMediaStreams))
+}
+
+// LockDataEQ applies the EQ predicate on the "lock_data" field.
+func LockDataEQ(v bool) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldLockData, v))
+}
+
+// LockDataNEQ applies the NEQ predicate on the "lock_data" field.
+func LockDataNEQ(v bool) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldLockData, v))
+}
+
+// LockedFieldsIsNil applies the IsNil predicate on the "locked_fields" field.
+func LockedFieldsIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldLockedFields))
+}
+
+// LockedFieldsNotNil applies the NotNil predicate on the "locked_fields" field.
+func LockedFieldsNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldLockedFields))
 }
 
 // HasLibrary applies the HasEdge predicate on the "library" edge.

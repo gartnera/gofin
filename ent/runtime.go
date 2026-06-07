@@ -108,6 +108,10 @@ func init() {
 	mediaitemDescImagePath := mediaitemFields[22].Descriptor()
 	// mediaitem.DefaultImagePath holds the default value on creation for the image_path field.
 	mediaitem.DefaultImagePath = mediaitemDescImagePath.Default.(string)
+	// mediaitemDescLockData is the schema descriptor for lock_data field.
+	mediaitemDescLockData := mediaitemFields[24].Descriptor()
+	// mediaitem.DefaultLockData holds the default value on creation for the lock_data field.
+	mediaitem.DefaultLockData = mediaitemDescLockData.Default.(bool)
 	// mediaitemDescID is the schema descriptor for id field.
 	mediaitemDescID := mediaitemFields[0].Descriptor()
 	// mediaitem.DefaultID holds the default value on creation for the id field.

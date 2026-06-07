@@ -41,14 +41,20 @@ Minimal Jellyfin-compatible media server in Go.
   an NFO is read only as a side effect of indexing the media file it describes.
   The scanner's `applyNFO` overlays the parsed metadata onto the item row after
   its filename/probe-derived fields are set (folders like Series/Season/Album/
-  Artist are enriched only while still bare).
+  Artist are enriched only while still bare). It honours metadata locks
+  (`metaLocked`): a locked field — or a fully locked item — is never overwritten
+  by an NFO, just as it isn't by the filename/probe pass.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
   IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
 - `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;
   play state lives in `playstate.go`, client-nicety stubs in `extras.go`.
   Admin-only scan endpoints in `library.go`: `POST /Library/Refresh` (background
   rescan of all libraries) and `POST /Items/{itemId}/Refresh` (re-probe one
-  item), gated by `requireAdmin`.
+  item), gated by `requireAdmin`. Metadata editing in `metadata.go`:
+  `POST /Items/{itemId}` (admin) accepts a `BaseItemDto` and persists the fields
+  gofin stores (name/sort/overview/year/index numbers) plus Jellyfin's
+  `LockData`/`LockedFields`. Locked items/fields are preserved by the scanner
+  (see `metaLocked` in `internal/scanner`) so rescans don't clobber edits.
 
 ## Conventions
 - Response bodies reuse `github.com/sj14/jellyfin-go/api` model structs so JSON

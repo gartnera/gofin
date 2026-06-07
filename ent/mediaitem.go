@@ -68,6 +68,10 @@ type MediaItem struct {
 	ImagePath string `json:"image_path,omitempty"`
 	// MediaStreams holds the value of the "media_streams" field.
 	MediaStreams []probe.Stream `json:"media_streams,omitempty"`
+	// LockData holds the value of the "lock_data" field.
+	LockData bool `json:"lock_data,omitempty"`
+	// LockedFields holds the value of the "locked_fields" field.
+	LockedFields []string `json:"locked_fields,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MediaItemQuery when eager-loading is set.
 	Edges               MediaItemEdges `json:"edges"`
@@ -136,8 +140,10 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case mediaitem.FieldGenres, mediaitem.FieldStudios, mediaitem.FieldPeople, mediaitem.FieldMediaStreams:
+		case mediaitem.FieldGenres, mediaitem.FieldStudios, mediaitem.FieldPeople, mediaitem.FieldMediaStreams, mediaitem.FieldLockedFields:
 			values[i] = new([]byte)
+		case mediaitem.FieldLockData:
+			values[i] = new(sql.NullBool)
 		case mediaitem.FieldCommunityRating:
 			values[i] = new(sql.NullFloat64)
 		case mediaitem.FieldMtime, mediaitem.FieldSize, mediaitem.FieldRunTimeTicks, mediaitem.FieldProductionYear, mediaitem.FieldIndexNumber, mediaitem.FieldIndexNumberEnd, mediaitem.FieldParentIndexNumber:
@@ -325,6 +331,20 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field media_streams: %w", err)
 				}
 			}
+		case mediaitem.FieldLockData:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field lock_data", values[i])
+			} else if value.Valid {
+				_m.LockData = value.Bool
+			}
+		case mediaitem.FieldLockedFields:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field locked_fields", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.LockedFields); err != nil {
+					return fmt.Errorf("unmarshal field locked_fields: %w", err)
+				}
+			}
 		case mediaitem.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field library_items", values[i])
@@ -475,6 +495,12 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("media_streams=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MediaStreams))
+	builder.WriteString(", ")
+	builder.WriteString("lock_data=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LockData))
+	builder.WriteString(", ")
+	builder.WriteString("locked_fields=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LockedFields))
 	builder.WriteByte(')')
 	return builder.String()
 }

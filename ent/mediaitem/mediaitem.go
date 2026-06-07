@@ -61,6 +61,10 @@ const (
 	FieldImagePath = "image_path"
 	// FieldMediaStreams holds the string denoting the media_streams field in the database.
 	FieldMediaStreams = "media_streams"
+	// FieldLockData holds the string denoting the lock_data field in the database.
+	FieldLockData = "lock_data"
+	// FieldLockedFields holds the string denoting the locked_fields field in the database.
+	FieldLockedFields = "locked_fields"
 	// EdgeLibrary holds the string denoting the library edge name in mutations.
 	EdgeLibrary = "library"
 	// EdgeParent holds the string denoting the parent edge name in mutations.
@@ -121,6 +125,8 @@ var Columns = []string{
 	FieldAlbumArtist,
 	FieldImagePath,
 	FieldMediaStreams,
+	FieldLockData,
+	FieldLockedFields,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "media_items"
@@ -170,6 +176,8 @@ var (
 	DefaultAlbumArtist string
 	// DefaultImagePath holds the default value on creation for the "image_path" field.
 	DefaultImagePath string
+	// DefaultLockData holds the default value on creation for the "lock_data" field.
+	DefaultLockData bool
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -303,6 +311,11 @@ func ByAlbumArtist(opts ...sql.OrderTermOption) OrderOption {
 // ByImagePath orders the results by the image_path field.
 func ByImagePath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldImagePath, opts...).ToFunc()
+}
+
+// ByLockData orders the results by the lock_data field.
+func ByLockData(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLockData, opts...).ToFunc()
 }
 
 // ByLibraryField orders the results by library field.

@@ -96,8 +96,8 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 	probed := s.probeFile(ctx, path)
 
 	if existing != nil {
+		// Always refresh on-disk/probe facts; preserve locked metadata edits.
 		upd := existing.Update().
-			SetName(meta.Title).
 			SetContainer(containerOf(path)).
 			SetRunTimeTicks(probed.RunTimeTicks).
 			SetMediaStreams(probed.Streams).
@@ -105,7 +105,10 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 			SetSize(info.Size()).
 			SetAlbumArtist(meta.Artist).
 			SetParentID(album.ID)
-		if meta.Track != nil {
+		if !metaLocked(existing, "Name") {
+			upd = upd.SetName(meta.Title)
+		}
+		if meta.Track != nil && !metaLocked(existing, "IndexNumber") {
 			upd = upd.SetIndexNumber(*meta.Track)
 		}
 		return upd.Exec(ctx)

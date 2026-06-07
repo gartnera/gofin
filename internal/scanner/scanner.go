@@ -74,20 +74,35 @@ func (s *Scanner) probeFile(ctx context.Context, path string) probe.Result {
 // applyNFO overlays metadata parsed from a local NFO file onto an item that has
 // already been created/updated with its core (filename- and probe-derived)
 // fields. It is a no-op when nf is nil, so callers can pass the result of an
-// nfo lookup directly. Scalar NFO sources are authoritative for these fields,
-// so absent values clear any stale metadata from a previous index.
+// nfo lookup directly. Scalar NFO sources are authoritative for the fields they
+// own, so absent values clear any stale metadata from a previous index — except
+// where the user has locked a field (or the whole item), which always wins over
+// the NFO, mirroring how the filename/probe pass treats metaLocked.
 func (s *Scanner) applyNFO(ctx context.Context, item *ent.MediaItem, nf *nfo.Info) error {
-	if nf == nil {
+	if nf == nil || item.LockData {
 		return nil
 	}
-	upd := item.Update().
-		SetOverview(nf.Overview).
-		SetTagline(nf.Tagline).
-		SetOfficialRating(nf.OfficialRating).
-		SetGenres(nf.Genres).
-		SetStudios(nf.Studios).
-		SetPeople(nf.People)
-	if nf.Year != nil {
+	// Field names are Jellyfin MetadataField values; those without an
+	// equivalent (Tagline/CommunityRating/PremiereDate) are governed only by the
+	// whole-item LockData guard above.
+	upd := item.Update()
+	if !metaLocked(item, "Overview") {
+		upd.SetOverview(nf.Overview)
+	}
+	upd.SetTagline(nf.Tagline)
+	if !metaLocked(item, "OfficialRating") {
+		upd.SetOfficialRating(nf.OfficialRating)
+	}
+	if !metaLocked(item, "Genres") {
+		upd.SetGenres(nf.Genres)
+	}
+	if !metaLocked(item, "Studios") {
+		upd.SetStudios(nf.Studios)
+	}
+	if !metaLocked(item, "Cast") {
+		upd.SetPeople(nf.People)
+	}
+	if nf.Year != nil && !metaLocked(item, "ProductionYear") {
 		upd.SetProductionYear(*nf.Year)
 	}
 	if nf.CommunityRating != nil {
@@ -318,6 +333,27 @@ func (s *Scanner) existingByPath(ctx context.Context, path string) (*ent.MediaIt
 // size and modification time, in which case it can be skipped without probing.
 func unchanged(it *ent.MediaItem, info os.FileInfo) bool {
 	return it != nil && it.Size == info.Size() && it.Mtime == info.ModTime().UnixNano()
+}
+
+// metaLocked reports whether a user-edited metadata field on an existing item
+// must be preserved rather than re-derived from the file. A whole-item lock
+// (LockData, Jellyfin's "Lock this item" checkbox) covers every field; a
+// per-field lock covers only that Jellyfin MetadataField name (e.g. "Name").
+// Fields with no MetadataField equivalent (e.g. "ProductionYear") are governed
+// solely by the whole-item lock.
+func metaLocked(it *ent.MediaItem, field string) bool {
+	if it == nil {
+		return false
+	}
+	if it.LockData {
+		return true
+	}
+	for _, f := range it.LockedFields {
+		if f == field {
+			return true
+		}
+	}
+	return false
 }
 
 // RefreshItem forces a re-probe and re-index of a single item by clearing its

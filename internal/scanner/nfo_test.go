@@ -22,6 +22,56 @@ func writeText(t *testing.T, path, content string) {
 	}
 }
 
+// TestScanNFORespectsLocks verifies that a locked field (or a fully locked
+// item) is preserved when a later rescan would otherwise re-apply NFO metadata.
+func TestScanNFORespectsLocks(t *testing.T) {
+	root := t.TempDir()
+	movies := filepath.Join(root, "movies")
+	dir := filepath.Join(movies, "Inception (2010)")
+	media := filepath.Join(dir, "Inception.mkv")
+	nfoPath := filepath.Join(dir, "Inception.nfo")
+	writeFile(t, media)
+	writeText(t, nfoPath, `<movie><title>Inception</title><plot>Original.</plot><genre>Action</genre></movie>`)
+
+	ctx := context.Background()
+	client, err := db.OpenMemory(ctx, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	sc := New(client, WithProber(probe.Noop{}))
+	lib, err := sc.EnsureLibrary(ctx, "Movies", "movies", movies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.ScanLibrary(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := client.MediaItem.Query().Where(mediaitem.KindEQ(mediaitem.KindMovie)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Lock the Overview field, then change the NFO and force a re-index.
+	if err := m.Update().SetLockedFields([]string{"Overview"}).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	writeText(t, nfoPath, `<movie><title>Inception</title><plot>Changed!</plot><genre>Sci-Fi</genre></movie>`)
+	if err := sc.RefreshItem(ctx, m); err != nil {
+		t.Fatal(err)
+	}
+
+	m = client.MediaItem.GetX(ctx, m.ID)
+	if m.Overview != "Original." {
+		t.Errorf("locked Overview = %q, want preserved %q", m.Overview, "Original.")
+	}
+	// An unlocked field still tracks the NFO.
+	if len(m.Genres) != 1 || m.Genres[0] != "Sci-Fi" {
+		t.Errorf("unlocked Genres = %v, want [Sci-Fi]", m.Genres)
+	}
+}
+
 // TestScanMovieNFO verifies a sidecar NFO populates a movie's metadata fields.
 func TestScanMovieNFO(t *testing.T) {
 	root := t.TempDir()

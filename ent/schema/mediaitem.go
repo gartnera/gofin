@@ -85,6 +85,16 @@ func (MediaItem) Fields() []ent.Field {
 		// playable items.
 		field.JSON("media_streams", []probe.Stream{}).
 			Optional(),
+		// lock_data mirrors Jellyfin's BaseItemDto.LockData ("Lock this item to
+		// prevent future changes"): when true the scanner preserves every
+		// user-editable metadata field instead of re-deriving it on rescan.
+		field.Bool("lock_data").
+			Default(false),
+		// locked_fields mirrors Jellyfin's BaseItemDto.LockedFields: the set of
+		// MetadataField names (e.g. "Name", "Overview") the scanner must not
+		// overwrite even when the item as a whole isn't locked.
+		field.JSON("locked_fields", []string{}).
+			Optional(),
 	}
 }
 
