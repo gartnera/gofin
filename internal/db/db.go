@@ -11,19 +11,28 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Open opens (and migrates) an ent client backed by a sqlite file at path.
-// Use ":memory:" or a "file:...mode=memory" DSN for ephemeral databases.
+// Open opens an ent client backed by a sqlite file at path. It does not run
+// migrations: the schema is owned by Migrate (invoked by `serve` and the
+// `migrate` command) so that DDL only ever runs from a single process. Use
+// ":memory:" or a "file:...mode=memory" DSN for ephemeral databases.
 func Open(ctx context.Context, path string) (*ent.Client, error) {
 	dsn := fmt.Sprintf("file:%s?_fk=1&_busy_timeout=5000", path)
 	client, err := ent.Open(dialect.SQLite, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite %q: %w", path, err)
 	}
-	if err := client.Schema.Create(ctx); err != nil {
-		client.Close()
-		return nil, fmt.Errorf("create schema: %w", err)
-	}
 	return client, nil
+}
+
+// Migrate creates or updates the database schema to match the ent models. It is
+// the single owner of DDL: `serve` runs it on startup and `migrate` runs it on
+// demand, so short-lived commands like `user add` can Open without taking a
+// schema lock against a live server.
+func Migrate(ctx context.Context, client *ent.Client) error {
+	if err := client.Schema.Create(ctx); err != nil {
+		return fmt.Errorf("create schema: %w", err)
+	}
+	return nil
 }
 
 // OpenMemory opens a fresh in-memory database, primarily for tests. Each call

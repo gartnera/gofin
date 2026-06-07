@@ -51,9 +51,13 @@ The config path defaults to `gofin.yaml` (override with `--config` or
 ```sh
 go build -o gofin ./cmd/gofin
 
+./gofin migrate                                        # create/update the schema
 ./gofin user add --name demo --password demo --admin   # create a user
 ./gofin serve                                           # scan libraries and run the server
 ```
+
+`serve` also runs migrations on startup, so `migrate` is only needed to
+initialise the database before `user add` on a fresh install.
 
 Point a Jellyfin client at `http://<host>:8096`, or exercise it directly:
 
