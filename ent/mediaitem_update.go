@@ -333,6 +333,38 @@ func (_u *MediaItemUpdate) ClearMediaStreams() *MediaItemUpdate {
 	return _u
 }
 
+// SetLockData sets the "lock_data" field.
+func (_u *MediaItemUpdate) SetLockData(v bool) *MediaItemUpdate {
+	_u.mutation.SetLockData(v)
+	return _u
+}
+
+// SetNillableLockData sets the "lock_data" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableLockData(v *bool) *MediaItemUpdate {
+	if v != nil {
+		_u.SetLockData(*v)
+	}
+	return _u
+}
+
+// SetLockedFields sets the "locked_fields" field.
+func (_u *MediaItemUpdate) SetLockedFields(v []string) *MediaItemUpdate {
+	_u.mutation.SetLockedFields(v)
+	return _u
+}
+
+// AppendLockedFields appends value to the "locked_fields" field.
+func (_u *MediaItemUpdate) AppendLockedFields(v []string) *MediaItemUpdate {
+	_u.mutation.AppendLockedFields(v)
+	return _u
+}
+
+// ClearLockedFields clears the value of the "locked_fields" field.
+func (_u *MediaItemUpdate) ClearLockedFields() *MediaItemUpdate {
+	_u.mutation.ClearLockedFields()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdate) SetLibraryID(id uuid.UUID) *MediaItemUpdate {
 	_u.mutation.SetLibraryID(id)
@@ -602,6 +634,20 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.MediaStreamsCleared() {
 		_spec.ClearField(mediaitem.FieldMediaStreams, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LockData(); ok {
+		_spec.SetField(mediaitem.FieldLockData, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LockedFields(); ok {
+		_spec.SetField(mediaitem.FieldLockedFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedLockedFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldLockedFields, value)
+		})
+	}
+	if _u.mutation.LockedFieldsCleared() {
+		_spec.ClearField(mediaitem.FieldLockedFields, field.TypeJSON)
 	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1072,6 +1118,38 @@ func (_u *MediaItemUpdateOne) ClearMediaStreams() *MediaItemUpdateOne {
 	return _u
 }
 
+// SetLockData sets the "lock_data" field.
+func (_u *MediaItemUpdateOne) SetLockData(v bool) *MediaItemUpdateOne {
+	_u.mutation.SetLockData(v)
+	return _u
+}
+
+// SetNillableLockData sets the "lock_data" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableLockData(v *bool) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetLockData(*v)
+	}
+	return _u
+}
+
+// SetLockedFields sets the "locked_fields" field.
+func (_u *MediaItemUpdateOne) SetLockedFields(v []string) *MediaItemUpdateOne {
+	_u.mutation.SetLockedFields(v)
+	return _u
+}
+
+// AppendLockedFields appends value to the "locked_fields" field.
+func (_u *MediaItemUpdateOne) AppendLockedFields(v []string) *MediaItemUpdateOne {
+	_u.mutation.AppendLockedFields(v)
+	return _u
+}
+
+// ClearLockedFields clears the value of the "locked_fields" field.
+func (_u *MediaItemUpdateOne) ClearLockedFields() *MediaItemUpdateOne {
+	_u.mutation.ClearLockedFields()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdateOne) SetLibraryID(id uuid.UUID) *MediaItemUpdateOne {
 	_u.mutation.SetLibraryID(id)
@@ -1371,6 +1449,20 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	}
 	if _u.mutation.MediaStreamsCleared() {
 		_spec.ClearField(mediaitem.FieldMediaStreams, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LockData(); ok {
+		_spec.SetField(mediaitem.FieldLockData, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.LockedFields(); ok {
+		_spec.SetField(mediaitem.FieldLockedFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedLockedFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, mediaitem.FieldLockedFields, value)
+		})
+	}
+	if _u.mutation.LockedFieldsCleared() {
+		_spec.ClearField(mediaitem.FieldLockedFields, field.TypeJSON)
 	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{

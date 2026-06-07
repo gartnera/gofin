@@ -126,6 +126,17 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 		dto.SetImageTags(map[string]string{"Primary": FormatID(it.ID)})
 	}
 
+	// Reflect the persisted lock state so the web metadata editor shows the
+	// "Lock this item" checkbox and per-field locks as they were saved.
+	dto.SetLockData(it.LockData)
+	if len(it.LockedFields) > 0 {
+		fields := make([]api.MetadataField, 0, len(it.LockedFields))
+		for _, f := range it.LockedFields {
+			fields = append(fields, api.MetadataField(f))
+		}
+		dto.SetLockedFields(fields)
+	}
+
 	if IsPlayable(it.Kind) {
 		dto.SetMediaType(MediaTypeFor(it.Kind))
 		dto.SetRunTimeTicks(it.RunTimeTicks)

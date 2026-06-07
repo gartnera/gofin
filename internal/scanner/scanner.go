@@ -287,6 +287,27 @@ func unchanged(it *ent.MediaItem, info os.FileInfo) bool {
 	return it != nil && it.Size == info.Size() && it.Mtime == info.ModTime().UnixNano()
 }
 
+// metaLocked reports whether a user-edited metadata field on an existing item
+// must be preserved rather than re-derived from the file. A whole-item lock
+// (LockData, Jellyfin's "Lock this item" checkbox) covers every field; a
+// per-field lock covers only that Jellyfin MetadataField name (e.g. "Name").
+// Fields with no MetadataField equivalent (e.g. "ProductionYear") are governed
+// solely by the whole-item lock.
+func metaLocked(it *ent.MediaItem, field string) bool {
+	if it == nil {
+		return false
+	}
+	if it.LockData {
+		return true
+	}
+	for _, f := range it.LockedFields {
+		if f == field {
+			return true
+		}
+	}
+	return false
+}
+
 // RefreshItem forces a re-probe and re-index of a single item by clearing its
 // stored mtime so the change check fails, then re-indexing the file.
 func (s *Scanner) RefreshItem(ctx context.Context, item *ent.MediaItem) error {

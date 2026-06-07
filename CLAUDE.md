@@ -34,7 +34,11 @@ Minimal Jellyfin-compatible media server in Go.
   play state lives in `playstate.go`, client-nicety stubs in `extras.go`.
   Admin-only scan endpoints in `library.go`: `POST /Library/Refresh` (background
   rescan of all libraries) and `POST /Items/{itemId}/Refresh` (re-probe one
-  item), gated by `requireAdmin`.
+  item), gated by `requireAdmin`. Metadata editing in `metadata.go`:
+  `POST /Items/{itemId}` (admin) accepts a `BaseItemDto` and persists the fields
+  gofin stores (name/sort/overview/year/index numbers) plus Jellyfin's
+  `LockData`/`LockedFields`. Locked items/fields are preserved by the scanner
+  (see `metaLocked` in `internal/scanner`) so rescans don't clobber edits.
 
 ## Conventions
 - Response bodies reuse `github.com/sj14/jellyfin-go/api` model structs so JSON

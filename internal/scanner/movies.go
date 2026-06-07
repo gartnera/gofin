@@ -22,14 +22,17 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 	probed := s.probeFile(ctx, path)
 
 	if existing != nil {
+		// Always refresh on-disk/probe facts; preserve locked metadata edits.
 		upd := existing.Update().
-			SetName(parsed.Title).
 			SetContainer(containerOf(path)).
 			SetRunTimeTicks(probed.RunTimeTicks).
 			SetMediaStreams(probed.Streams).
 			SetMtime(info.ModTime().UnixNano()).
 			SetSize(info.Size())
-		if parsed.Year != nil {
+		if !metaLocked(existing, "Name") {
+			upd = upd.SetName(parsed.Title)
+		}
+		if parsed.Year != nil && !metaLocked(existing, "ProductionYear") {
 			upd = upd.SetProductionYear(*parsed.Year)
 		}
 		return upd.Exec(ctx)

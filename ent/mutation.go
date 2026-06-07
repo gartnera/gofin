@@ -1263,6 +1263,9 @@ type MediaItemMutation struct {
 	image_path             *string
 	media_streams          *[]probe.Stream
 	appendmedia_streams    []probe.Stream
+	lock_data              *bool
+	locked_fields          *[]string
+	appendlocked_fields    []string
 	clearedFields          map[string]struct{}
 	library                *uuid.UUID
 	clearedlibrary         bool
@@ -2184,6 +2187,107 @@ func (m *MediaItemMutation) ResetMediaStreams() {
 	delete(m.clearedFields, mediaitem.FieldMediaStreams)
 }
 
+// SetLockData sets the "lock_data" field.
+func (m *MediaItemMutation) SetLockData(b bool) {
+	m.lock_data = &b
+}
+
+// LockData returns the value of the "lock_data" field in the mutation.
+func (m *MediaItemMutation) LockData() (r bool, exists bool) {
+	v := m.lock_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLockData returns the old "lock_data" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldLockData(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLockData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLockData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLockData: %w", err)
+	}
+	return oldValue.LockData, nil
+}
+
+// ResetLockData resets all changes to the "lock_data" field.
+func (m *MediaItemMutation) ResetLockData() {
+	m.lock_data = nil
+}
+
+// SetLockedFields sets the "locked_fields" field.
+func (m *MediaItemMutation) SetLockedFields(s []string) {
+	m.locked_fields = &s
+	m.appendlocked_fields = nil
+}
+
+// LockedFields returns the value of the "locked_fields" field in the mutation.
+func (m *MediaItemMutation) LockedFields() (r []string, exists bool) {
+	v := m.locked_fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLockedFields returns the old "locked_fields" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldLockedFields(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLockedFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLockedFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLockedFields: %w", err)
+	}
+	return oldValue.LockedFields, nil
+}
+
+// AppendLockedFields adds s to the "locked_fields" field.
+func (m *MediaItemMutation) AppendLockedFields(s []string) {
+	m.appendlocked_fields = append(m.appendlocked_fields, s...)
+}
+
+// AppendedLockedFields returns the list of values that were appended to the "locked_fields" field in this mutation.
+func (m *MediaItemMutation) AppendedLockedFields() ([]string, bool) {
+	if len(m.appendlocked_fields) == 0 {
+		return nil, false
+	}
+	return m.appendlocked_fields, true
+}
+
+// ClearLockedFields clears the value of the "locked_fields" field.
+func (m *MediaItemMutation) ClearLockedFields() {
+	m.locked_fields = nil
+	m.appendlocked_fields = nil
+	m.clearedFields[mediaitem.FieldLockedFields] = struct{}{}
+}
+
+// LockedFieldsCleared returns if the "locked_fields" field was cleared in this mutation.
+func (m *MediaItemMutation) LockedFieldsCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldLockedFields]
+	return ok
+}
+
+// ResetLockedFields resets all changes to the "locked_fields" field.
+func (m *MediaItemMutation) ResetLockedFields() {
+	m.locked_fields = nil
+	m.appendlocked_fields = nil
+	delete(m.clearedFields, mediaitem.FieldLockedFields)
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by id.
 func (m *MediaItemMutation) SetLibraryID(id uuid.UUID) {
 	m.library = &id
@@ -2404,7 +2508,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 18)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2453,6 +2557,12 @@ func (m *MediaItemMutation) Fields() []string {
 	if m.media_streams != nil {
 		fields = append(fields, mediaitem.FieldMediaStreams)
 	}
+	if m.lock_data != nil {
+		fields = append(fields, mediaitem.FieldLockData)
+	}
+	if m.locked_fields != nil {
+		fields = append(fields, mediaitem.FieldLockedFields)
+	}
 	return fields
 }
 
@@ -2493,6 +2603,10 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.ImagePath()
 	case mediaitem.FieldMediaStreams:
 		return m.MediaStreams()
+	case mediaitem.FieldLockData:
+		return m.LockData()
+	case mediaitem.FieldLockedFields:
+		return m.LockedFields()
 	}
 	return nil, false
 }
@@ -2534,6 +2648,10 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldImagePath(ctx)
 	case mediaitem.FieldMediaStreams:
 		return m.OldMediaStreams(ctx)
+	case mediaitem.FieldLockData:
+		return m.OldLockData(ctx)
+	case mediaitem.FieldLockedFields:
+		return m.OldLockedFields(ctx)
 	}
 	return nil, fmt.Errorf("unknown MediaItem field %s", name)
 }
@@ -2654,6 +2772,20 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMediaStreams(v)
+		return nil
+	case mediaitem.FieldLockData:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLockData(v)
+		return nil
+	case mediaitem.FieldLockedFields:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLockedFields(v)
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)
@@ -2787,6 +2919,9 @@ func (m *MediaItemMutation) ClearedFields() []string {
 	if m.FieldCleared(mediaitem.FieldMediaStreams) {
 		fields = append(fields, mediaitem.FieldMediaStreams)
 	}
+	if m.FieldCleared(mediaitem.FieldLockedFields) {
+		fields = append(fields, mediaitem.FieldLockedFields)
+	}
 	return fields
 }
 
@@ -2815,6 +2950,9 @@ func (m *MediaItemMutation) ClearField(name string) error {
 		return nil
 	case mediaitem.FieldMediaStreams:
 		m.ClearMediaStreams()
+		return nil
+	case mediaitem.FieldLockedFields:
+		m.ClearLockedFields()
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem nullable field %s", name)
@@ -2871,6 +3009,12 @@ func (m *MediaItemMutation) ResetField(name string) error {
 		return nil
 	case mediaitem.FieldMediaStreams:
 		m.ResetMediaStreams()
+		return nil
+	case mediaitem.FieldLockData:
+		m.ResetLockData()
+		return nil
+	case mediaitem.FieldLockedFields:
+		m.ResetLockedFields()
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)

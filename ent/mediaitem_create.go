@@ -223,6 +223,26 @@ func (_c *MediaItemCreate) SetMediaStreams(v []probe.Stream) *MediaItemCreate {
 	return _c
 }
 
+// SetLockData sets the "lock_data" field.
+func (_c *MediaItemCreate) SetLockData(v bool) *MediaItemCreate {
+	_c.mutation.SetLockData(v)
+	return _c
+}
+
+// SetNillableLockData sets the "lock_data" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableLockData(v *bool) *MediaItemCreate {
+	if v != nil {
+		_c.SetLockData(*v)
+	}
+	return _c
+}
+
+// SetLockedFields sets the "locked_fields" field.
+func (_c *MediaItemCreate) SetLockedFields(v []string) *MediaItemCreate {
+	_c.mutation.SetLockedFields(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *MediaItemCreate) SetID(v uuid.UUID) *MediaItemCreate {
 	_c.mutation.SetID(v)
@@ -376,6 +396,10 @@ func (_c *MediaItemCreate) defaults() {
 		v := mediaitem.DefaultImagePath
 		_c.mutation.SetImagePath(v)
 	}
+	if _, ok := _c.mutation.LockData(); !ok {
+		v := mediaitem.DefaultLockData
+		_c.mutation.SetLockData(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := mediaitem.DefaultID()
 		_c.mutation.SetID(v)
@@ -426,6 +450,9 @@ func (_c *MediaItemCreate) check() error {
 	}
 	if _, ok := _c.mutation.ImagePath(); !ok {
 		return &ValidationError{Name: "image_path", err: errors.New(`ent: missing required field "MediaItem.image_path"`)}
+	}
+	if _, ok := _c.mutation.LockData(); !ok {
+		return &ValidationError{Name: "lock_data", err: errors.New(`ent: missing required field "MediaItem.lock_data"`)}
 	}
 	return nil
 }
@@ -525,6 +552,14 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MediaStreams(); ok {
 		_spec.SetField(mediaitem.FieldMediaStreams, field.TypeJSON, value)
 		_node.MediaStreams = value
+	}
+	if value, ok := _c.mutation.LockData(); ok {
+		_spec.SetField(mediaitem.FieldLockData, field.TypeBool, value)
+		_node.LockData = value
+	}
+	if value, ok := _c.mutation.LockedFields(); ok {
+		_spec.SetField(mediaitem.FieldLockedFields, field.TypeJSON, value)
+		_node.LockedFields = value
 	}
 	if nodes := _c.mutation.LibraryIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
