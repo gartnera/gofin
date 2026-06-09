@@ -15,6 +15,19 @@ type Library struct {
 	Path string `yaml:"path"`
 }
 
+// Metadata configures optional remote metadata fetching. When Enabled is false
+// (the default) gofin makes no outbound network calls and relies solely on local
+// filename/NFO/artwork sources.
+type Metadata struct {
+	Enabled bool `yaml:"enabled"`
+	// TMDbToken is a TMDb v4 read-access token (required when Enabled).
+	TMDbToken string `yaml:"tmdb_token"`
+	// CacheDir is where downloaded posters are cached on disk.
+	CacheDir string `yaml:"cache_dir"`
+	// TTLDays is how long a cached remote response is considered fresh.
+	TTLDays int `yaml:"ttl_days"`
+}
+
 // Config is the gofin server configuration loaded from YAML.
 type Config struct {
 	ServerName string    `yaml:"server_name"`
@@ -22,13 +35,16 @@ type Config struct {
 	Database   string    `yaml:"database"`
 	WebRoot    string    `yaml:"web_root"`
 	Libraries  []Library `yaml:"libraries"`
+	Metadata   Metadata  `yaml:"metadata"`
 }
 
 // Default values applied when a field is omitted from the YAML file.
 const (
-	DefaultServerName = "gofin"
-	DefaultListen     = ":8096"
-	DefaultDatabase   = "gofin.db"
+	DefaultServerName   = "gofin"
+	DefaultListen       = ":8096"
+	DefaultDatabase     = "gofin.db"
+	DefaultMetaCacheDir = "metadata-cache"
+	DefaultMetaTTLDays  = 14
 )
 
 // Load reads and validates a YAML config file from path.
@@ -58,6 +74,12 @@ func (c *Config) applyDefaults() {
 	if c.Database == "" {
 		c.Database = DefaultDatabase
 	}
+	if c.Metadata.CacheDir == "" {
+		c.Metadata.CacheDir = DefaultMetaCacheDir
+	}
+	if c.Metadata.TTLDays == 0 {
+		c.Metadata.TTLDays = DefaultMetaTTLDays
+	}
 }
 
 func (c *Config) validate() error {
@@ -72,6 +94,9 @@ func (c *Config) validate() error {
 		if !valid[lib.Type] {
 			return fmt.Errorf("library %q: type must be movies, tvshows or music (got %q)", lib.Name, lib.Type)
 		}
+	}
+	if c.Metadata.Enabled && c.Metadata.TMDbToken == "" {
+		return fmt.Errorf("metadata.tmdb_token is required when metadata.enabled is true")
 	}
 	return nil
 }

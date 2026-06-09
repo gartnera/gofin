@@ -18,6 +18,8 @@ type Tx struct {
 	Library *LibraryClient
 	// MediaItem is the client for interacting with the MediaItem builders.
 	MediaItem *MediaItemClient
+	// MetadataCache is the client for interacting with the MetadataCache builders.
+	MetadataCache *MetadataCacheClient
 	// PlayState is the client for interacting with the PlayState builders.
 	PlayState *PlayStateClient
 	// User is the client for interacting with the User builders.
@@ -156,6 +158,7 @@ func (tx *Tx) init() {
 	tx.AccessToken = NewAccessTokenClient(tx.config)
 	tx.Library = NewLibraryClient(tx.config)
 	tx.MediaItem = NewMediaItemClient(tx.config)
+	tx.MetadataCache = NewMetadataCacheClient(tx.config)
 	tx.PlayState = NewPlayStateClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

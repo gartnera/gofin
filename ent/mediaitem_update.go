@@ -16,6 +16,7 @@ import (
 	"github.com/gartnera/gofin/ent/mediaitem"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -496,6 +497,38 @@ func (_u *MediaItemUpdate) ClearLockedFields() *MediaItemUpdate {
 	return _u
 }
 
+// SetProviderIds sets the "provider_ids" field.
+func (_u *MediaItemUpdate) SetProviderIds(v metadata.ProviderIDs) *MediaItemUpdate {
+	_u.mutation.SetProviderIds(v)
+	return _u
+}
+
+// ClearProviderIds clears the value of the "provider_ids" field.
+func (_u *MediaItemUpdate) ClearProviderIds() *MediaItemUpdate {
+	_u.mutation.ClearProviderIds()
+	return _u
+}
+
+// SetMetadataSyncedAt sets the "metadata_synced_at" field.
+func (_u *MediaItemUpdate) SetMetadataSyncedAt(v time.Time) *MediaItemUpdate {
+	_u.mutation.SetMetadataSyncedAt(v)
+	return _u
+}
+
+// SetNillableMetadataSyncedAt sets the "metadata_synced_at" field if the given value is not nil.
+func (_u *MediaItemUpdate) SetNillableMetadataSyncedAt(v *time.Time) *MediaItemUpdate {
+	if v != nil {
+		_u.SetMetadataSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearMetadataSyncedAt clears the value of the "metadata_synced_at" field.
+func (_u *MediaItemUpdate) ClearMetadataSyncedAt() *MediaItemUpdate {
+	_u.mutation.ClearMetadataSyncedAt()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdate) SetLibraryID(id uuid.UUID) *MediaItemUpdate {
 	_u.mutation.SetLibraryID(id)
@@ -833,6 +866,18 @@ func (_u *MediaItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LockedFieldsCleared() {
 		_spec.ClearField(mediaitem.FieldLockedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProviderIds(); ok {
+		_spec.SetField(mediaitem.FieldProviderIds, field.TypeJSON, value)
+	}
+	if _u.mutation.ProviderIdsCleared() {
+		_spec.ClearField(mediaitem.FieldProviderIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MetadataSyncedAt(); ok {
+		_spec.SetField(mediaitem.FieldMetadataSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.MetadataSyncedAtCleared() {
+		_spec.ClearField(mediaitem.FieldMetadataSyncedAt, field.TypeTime)
 	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1464,6 +1509,38 @@ func (_u *MediaItemUpdateOne) ClearLockedFields() *MediaItemUpdateOne {
 	return _u
 }
 
+// SetProviderIds sets the "provider_ids" field.
+func (_u *MediaItemUpdateOne) SetProviderIds(v metadata.ProviderIDs) *MediaItemUpdateOne {
+	_u.mutation.SetProviderIds(v)
+	return _u
+}
+
+// ClearProviderIds clears the value of the "provider_ids" field.
+func (_u *MediaItemUpdateOne) ClearProviderIds() *MediaItemUpdateOne {
+	_u.mutation.ClearProviderIds()
+	return _u
+}
+
+// SetMetadataSyncedAt sets the "metadata_synced_at" field.
+func (_u *MediaItemUpdateOne) SetMetadataSyncedAt(v time.Time) *MediaItemUpdateOne {
+	_u.mutation.SetMetadataSyncedAt(v)
+	return _u
+}
+
+// SetNillableMetadataSyncedAt sets the "metadata_synced_at" field if the given value is not nil.
+func (_u *MediaItemUpdateOne) SetNillableMetadataSyncedAt(v *time.Time) *MediaItemUpdateOne {
+	if v != nil {
+		_u.SetMetadataSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearMetadataSyncedAt clears the value of the "metadata_synced_at" field.
+func (_u *MediaItemUpdateOne) ClearMetadataSyncedAt() *MediaItemUpdateOne {
+	_u.mutation.ClearMetadataSyncedAt()
+	return _u
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by ID.
 func (_u *MediaItemUpdateOne) SetLibraryID(id uuid.UUID) *MediaItemUpdateOne {
 	_u.mutation.SetLibraryID(id)
@@ -1831,6 +1908,18 @@ func (_u *MediaItemUpdateOne) sqlSave(ctx context.Context) (_node *MediaItem, er
 	}
 	if _u.mutation.LockedFieldsCleared() {
 		_spec.ClearField(mediaitem.FieldLockedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProviderIds(); ok {
+		_spec.SetField(mediaitem.FieldProviderIds, field.TypeJSON, value)
+	}
+	if _u.mutation.ProviderIdsCleared() {
+		_spec.ClearField(mediaitem.FieldProviderIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MetadataSyncedAt(); ok {
+		_spec.SetField(mediaitem.FieldMetadataSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.MetadataSyncedAtCleared() {
+		_spec.ClearField(mediaitem.FieldMetadataSyncedAt, field.TypeTime)
 	}
 	if _u.mutation.LibraryCleared() {
 		edge := &sqlgraph.EdgeSpec{

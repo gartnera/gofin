@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -72,6 +73,10 @@ type MediaItem struct {
 	LockData bool `json:"lock_data,omitempty"`
 	// LockedFields holds the value of the "locked_fields" field.
 	LockedFields []string `json:"locked_fields,omitempty"`
+	// ProviderIds holds the value of the "provider_ids" field.
+	ProviderIds metadata.ProviderIDs `json:"provider_ids,omitempty"`
+	// MetadataSyncedAt holds the value of the "metadata_synced_at" field.
+	MetadataSyncedAt *time.Time `json:"metadata_synced_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the MediaItemQuery when eager-loading is set.
 	Edges               MediaItemEdges `json:"edges"`
@@ -140,7 +145,7 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case mediaitem.FieldGenres, mediaitem.FieldStudios, mediaitem.FieldPeople, mediaitem.FieldMediaStreams, mediaitem.FieldLockedFields:
+		case mediaitem.FieldGenres, mediaitem.FieldStudios, mediaitem.FieldPeople, mediaitem.FieldMediaStreams, mediaitem.FieldLockedFields, mediaitem.FieldProviderIds:
 			values[i] = new([]byte)
 		case mediaitem.FieldLockData:
 			values[i] = new(sql.NullBool)
@@ -150,7 +155,7 @@ func (*MediaItem) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case mediaitem.FieldKind, mediaitem.FieldName, mediaitem.FieldSortName, mediaitem.FieldPath, mediaitem.FieldContainer, mediaitem.FieldOverview, mediaitem.FieldTagline, mediaitem.FieldOfficialRating, mediaitem.FieldAlbumArtist, mediaitem.FieldImagePath:
 			values[i] = new(sql.NullString)
-		case mediaitem.FieldPremiereDate:
+		case mediaitem.FieldPremiereDate, mediaitem.FieldMetadataSyncedAt:
 			values[i] = new(sql.NullTime)
 		case mediaitem.FieldID:
 			values[i] = new(uuid.UUID)
@@ -345,6 +350,21 @@ func (_m *MediaItem) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field locked_fields: %w", err)
 				}
 			}
+		case mediaitem.FieldProviderIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ProviderIds); err != nil {
+					return fmt.Errorf("unmarshal field provider_ids: %w", err)
+				}
+			}
+		case mediaitem.FieldMetadataSyncedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata_synced_at", values[i])
+			} else if value.Valid {
+				_m.MetadataSyncedAt = new(time.Time)
+				*_m.MetadataSyncedAt = value.Time
+			}
 		case mediaitem.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field library_items", values[i])
@@ -501,6 +521,14 @@ func (_m *MediaItem) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("locked_fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LockedFields))
+	builder.WriteString(", ")
+	builder.WriteString("provider_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderIds))
+	builder.WriteString(", ")
+	if v := _m.MetadataSyncedAt; v != nil {
+		builder.WriteString("metadata_synced_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

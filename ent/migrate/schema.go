@@ -74,6 +74,8 @@ var (
 		{Name: "media_streams", Type: field.TypeJSON, Nullable: true},
 		{Name: "lock_data", Type: field.TypeBool, Default: false},
 		{Name: "locked_fields", Type: field.TypeJSON, Nullable: true},
+		{Name: "provider_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "metadata_synced_at", Type: field.TypeTime, Nullable: true},
 		{Name: "library_items", Type: field.TypeUUID, Nullable: true},
 		{Name: "media_item_children", Type: field.TypeUUID, Nullable: true},
 	}
@@ -85,13 +87,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "media_items_libraries_items",
-				Columns:    []*schema.Column{MediaItemsColumns[26]},
+				Columns:    []*schema.Column{MediaItemsColumns[28]},
 				RefColumns: []*schema.Column{LibrariesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "media_items_media_items_children",
-				Columns:    []*schema.Column{MediaItemsColumns[27]},
+				Columns:    []*schema.Column{MediaItemsColumns[29]},
 				RefColumns: []*schema.Column{MediaItemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -105,22 +107,50 @@ var (
 			{
 				Name:    "mediaitem_kind_sort_name_library_items",
 				Unique:  false,
-				Columns: []*schema.Column{MediaItemsColumns[1], MediaItemsColumns[3], MediaItemsColumns[26]},
+				Columns: []*schema.Column{MediaItemsColumns[1], MediaItemsColumns[3], MediaItemsColumns[28]},
 			},
 			{
 				Name:    "mediaitem_media_item_children",
 				Unique:  false,
-				Columns: []*schema.Column{MediaItemsColumns[27]},
+				Columns: []*schema.Column{MediaItemsColumns[29]},
 			},
 			{
 				Name:    "mediaitem_library_items",
 				Unique:  false,
-				Columns: []*schema.Column{MediaItemsColumns[26]},
+				Columns: []*schema.Column{MediaItemsColumns[28]},
 			},
 			{
 				Name:    "mediaitem_mtime_library_items",
 				Unique:  false,
-				Columns: []*schema.Column{MediaItemsColumns[5], MediaItemsColumns[26]},
+				Columns: []*schema.Column{MediaItemsColumns[5], MediaItemsColumns[28]},
+			},
+			{
+				Name:    "mediaitem_metadata_synced_at",
+				Unique:  false,
+				Columns: []*schema.Column{MediaItemsColumns[27]},
+			},
+		},
+	}
+	// MetadataCachesColumns holds the columns for the "metadata_caches" table.
+	MetadataCachesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "provider", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "key", Type: field.TypeString},
+		{Name: "payload", Type: field.TypeBytes, Nullable: true},
+		{Name: "not_found", Type: field.TypeBool, Default: false},
+		{Name: "fetched_at", Type: field.TypeTime},
+	}
+	// MetadataCachesTable holds the schema information for the "metadata_caches" table.
+	MetadataCachesTable = &schema.Table{
+		Name:       "metadata_caches",
+		Columns:    MetadataCachesColumns,
+		PrimaryKey: []*schema.Column{MetadataCachesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "metadatacache_provider_kind_key",
+				Unique:  true,
+				Columns: []*schema.Column{MetadataCachesColumns[1], MetadataCachesColumns[2], MetadataCachesColumns[3]},
 			},
 		},
 	}
@@ -173,6 +203,7 @@ var (
 		AccessTokensTable,
 		LibrariesTable,
 		MediaItemsTable,
+		MetadataCachesTable,
 		PlayStatesTable,
 		UsersTable,
 	}

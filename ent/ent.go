@@ -15,6 +15,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/metadatacache"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/user"
 )
@@ -77,11 +78,12 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			accesstoken.Table: accesstoken.ValidColumn,
-			library.Table:     library.ValidColumn,
-			mediaitem.Table:   mediaitem.ValidColumn,
-			playstate.Table:   playstate.ValidColumn,
-			user.Table:        user.ValidColumn,
+			accesstoken.Table:   accesstoken.ValidColumn,
+			library.Table:       library.ValidColumn,
+			mediaitem.Table:     mediaitem.ValidColumn,
+			metadatacache.Table: metadatacache.ValidColumn,
+			playstate.Table:     playstate.ValidColumn,
+			user.Table:          user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

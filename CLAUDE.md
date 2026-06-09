@@ -4,7 +4,9 @@ Minimal Jellyfin-compatible media server in Go.
 
 ## Architecture
 - `cmd/gofin` — cobra CLI: `serve`, `migrate`, `user add`, `sample`.
-- `internal/config` — YAML config (`gofin.yaml`).
+- `internal/config` — YAML config (`gofin.yaml`). Includes an optional
+  `metadata` block (`enabled`, `tmdb_token`, `cache_dir`, `ttl_days`) gating
+  remote metadata fetching; validation requires a token when enabled.
 - `internal/sample` — generates large synthetic libraries (realistic
   movie/episode/track names + layouts) for benchmarking and load-testing; backs
   the `gofin sample` command. Default mode writes empty placeholder files (fast,
@@ -14,14 +16,20 @@ Minimal Jellyfin-compatible media server in Go.
   indexes symlinks normally and ffprobe/ServeContent follow them to the real
   bytes (see `TestScanFollowsSymlinks`). `scripts/gen-sample-library.sh` remains
   the way to make a few standalone real files without this package.
-- `ent/` — ent schema + generated code (User, AccessToken, Library, MediaItem).
+- `ent/` — ent schema + generated code (User, AccessToken, Library, MediaItem,
+  MetadataCache).
   Regenerate with `go generate ./ent/...` after editing `ent/schema/*`. MediaItem
   carries composite/edge indexes for the large-library query paths: a
   `(kind, sort_name, library)` index for library grids, edge-only `parent` and
   `library` indexes leading with the FK for folder browsing and scoping, and a
   `(mtime, library)` index for Latest. Note ent always orders index fields
   before edge columns, so a parent-leading composite is impossible — use an
-  edge-only index where the FK must lead.
+  edge-only index where the FK must lead. MediaItem also carries `provider_ids`
+  (remote-metadata IDs, stamped once and reused) and `metadata_synced_at` (the
+  enricher's per-item marker, indexed so the sweep for unsynced items is cheap).
+  MetadataCache persists one remote lookup per `(provider, kind, key)` (the
+  normalized query → JSON payload, with a `not_found` negative flag) so a title
+  is fetched at most once across rescans/restarts.
 - `internal/db` — opens/migrates the SQLite (CGO `mattn/go-sqlite3`) ent client.
   The on-disk DSN sets `_journal_mode=WAL&_synchronous=NORMAL` so a large scan's
   per-row inserts don't each fsync and watcher writes don't block HTTP reads.
@@ -99,8 +107,34 @@ Minimal Jellyfin-compatible media server in Go.
   an item with its own image and, for one without, inherits the nearest
   ancestor's poster via `ParentPrimaryImage*` (and `SeriesPrimaryImageTag`/
   `AlbumPrimaryImageTag`), which is why item queries eager-load two parent levels
-  (`withGrandparent`). The `/Items/{id}/Images/{type}` route serves the bytes.
-  Embedded (in-file) and remote artwork are out of scope.
+  (`withGrandparent`). The `/Items/{id}/Images/{type}` route serves the bytes
+  from `image_path` regardless of source, so a poster downloaded by the metadata
+  enricher (below) plugs into the same route. Embedded (in-file) artwork is out
+  of scope.
+- `internal/metadata` — pluggable remote-metadata fetching behind a `Provider`
+  interface (`MovieSearch`/`SeriesSearch` returning a normalized `Result` that is
+  a superset of `nfo.Info` plus `ProviderIDs` and a `PosterURL`), mirroring the
+  `probe.Prober` pattern. `Noop` is the default (no network). The `tmdb`
+  subpackage is the concrete provider (stdlib `net/http`, v4 bearer token,
+  rate-gated, `/configuration` for image URLs). It is a leaf package (imports
+  only `nfo`), so `ent/schema` can import `metadata.ProviderIDs` without a cycle.
+  Enrichment itself lives in `internal/scanner/enrich.go`: a background worker
+  (`StartEnricher`, started by `serve`) fed by a non-blocking channel from the
+  index funcs (`maybeEnrich` enqueues un-enriched Movie/Series rows) plus a
+  durable marker (`metadata_synced_at`) and a periodic+startup `sweep` of nil
+  markers as the backstop for restarts/dropped sends. The worker resolves a match
+  "library-first": it consults the `MetadataCache` table (keyed by the normalized
+  query, so two items with the same title share one lookup and a miss is cached
+  negatively) before ever calling the provider, and series identity is stamped on
+  the Series row's `provider_ids` for reuse. `applyRemote` is the mirror of
+  `applyNFO` — it fills only empty, unlocked fields (so local NFO and `metaLocked`
+  always win) and downloads the poster to `cache_dir` (skipped if a local
+  `image_path` already exists, or if the file is already cached). Network happens
+  outside `s.mu`; only the per-item write takes the lock, so scans never block on
+  TMDb. All of this is gated by config (`metadata.enabled`); the default scanner
+  uses `Noop` and makes no network calls. `RefreshItem` clears the marker so a
+  manual refresh re-pulls. Per-episode/season and music providers are out of
+  scope for now.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
   IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
 - `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;

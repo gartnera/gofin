@@ -14,3 +14,12 @@ libraries:
   - name: Music
     type: music
     path: /media/music
+
+# Optional remote metadata fetching (movies + TV series via TMDb). Disabled by
+# default: with no token, gofin makes no outbound network calls. Local NFO,
+# on-disk artwork and locked fields always take precedence over remote data.
+metadata:
+  enabled: false
+  tmdb_token: ""              # TMDb v4 read-access token (required when enabled)
+  cache_dir: metadata-cache   # where downloaded posters are cached
+  ttl_days: 14                # how long a cached remote response stays fresh

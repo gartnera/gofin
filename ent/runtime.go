@@ -8,6 +8,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/metadatacache"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/schema"
 	"github.com/gartnera/gofin/ent/user"
@@ -116,6 +117,20 @@ func init() {
 	mediaitemDescID := mediaitemFields[0].Descriptor()
 	// mediaitem.DefaultID holds the default value on creation for the id field.
 	mediaitem.DefaultID = mediaitemDescID.Default.(func() uuid.UUID)
+	metadatacacheFields := schema.MetadataCache{}.Fields()
+	_ = metadatacacheFields
+	// metadatacacheDescNotFound is the schema descriptor for not_found field.
+	metadatacacheDescNotFound := metadatacacheFields[5].Descriptor()
+	// metadatacache.DefaultNotFound holds the default value on creation for the not_found field.
+	metadatacache.DefaultNotFound = metadatacacheDescNotFound.Default.(bool)
+	// metadatacacheDescFetchedAt is the schema descriptor for fetched_at field.
+	metadatacacheDescFetchedAt := metadatacacheFields[6].Descriptor()
+	// metadatacache.DefaultFetchedAt holds the default value on creation for the fetched_at field.
+	metadatacache.DefaultFetchedAt = metadatacacheDescFetchedAt.Default.(func() time.Time)
+	// metadatacacheDescID is the schema descriptor for id field.
+	metadatacacheDescID := metadatacacheFields[0].Descriptor()
+	// metadatacache.DefaultID holds the default value on creation for the id field.
+	metadatacache.DefaultID = metadatacacheDescID.Default.(func() uuid.UUID)
 	playstateFields := schema.PlayState{}.Fields()
 	_ = playstateFields
 	// playstateDescPlayed is the schema descriptor for played field.

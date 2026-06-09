@@ -14,9 +14,11 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/metadatacache"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/predicate"
 	"github.com/gartnera/gofin/ent/user"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -31,11 +33,12 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAccessToken = "AccessToken"
-	TypeLibrary     = "Library"
-	TypeMediaItem   = "MediaItem"
-	TypePlayState   = "PlayState"
-	TypeUser        = "User"
+	TypeAccessToken   = "AccessToken"
+	TypeLibrary       = "Library"
+	TypeMediaItem     = "MediaItem"
+	TypeMetadataCache = "MetadataCache"
+	TypePlayState     = "PlayState"
+	TypeUser          = "User"
 )
 
 // AccessTokenMutation represents an operation that mutates the AccessToken nodes in the graph.
@@ -1278,6 +1281,8 @@ type MediaItemMutation struct {
 	lock_data              *bool
 	locked_fields          *[]string
 	appendlocked_fields    []string
+	provider_ids           *metadata.ProviderIDs
+	metadata_synced_at     *time.Time
 	clearedFields          map[string]struct{}
 	library                *uuid.UUID
 	clearedlibrary         bool
@@ -2686,6 +2691,104 @@ func (m *MediaItemMutation) ResetLockedFields() {
 	delete(m.clearedFields, mediaitem.FieldLockedFields)
 }
 
+// SetProviderIds sets the "provider_ids" field.
+func (m *MediaItemMutation) SetProviderIds(mi metadata.ProviderIDs) {
+	m.provider_ids = &mi
+}
+
+// ProviderIds returns the value of the "provider_ids" field in the mutation.
+func (m *MediaItemMutation) ProviderIds() (r metadata.ProviderIDs, exists bool) {
+	v := m.provider_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderIds returns the old "provider_ids" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldProviderIds(ctx context.Context) (v metadata.ProviderIDs, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderIds: %w", err)
+	}
+	return oldValue.ProviderIds, nil
+}
+
+// ClearProviderIds clears the value of the "provider_ids" field.
+func (m *MediaItemMutation) ClearProviderIds() {
+	m.provider_ids = nil
+	m.clearedFields[mediaitem.FieldProviderIds] = struct{}{}
+}
+
+// ProviderIdsCleared returns if the "provider_ids" field was cleared in this mutation.
+func (m *MediaItemMutation) ProviderIdsCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldProviderIds]
+	return ok
+}
+
+// ResetProviderIds resets all changes to the "provider_ids" field.
+func (m *MediaItemMutation) ResetProviderIds() {
+	m.provider_ids = nil
+	delete(m.clearedFields, mediaitem.FieldProviderIds)
+}
+
+// SetMetadataSyncedAt sets the "metadata_synced_at" field.
+func (m *MediaItemMutation) SetMetadataSyncedAt(t time.Time) {
+	m.metadata_synced_at = &t
+}
+
+// MetadataSyncedAt returns the value of the "metadata_synced_at" field in the mutation.
+func (m *MediaItemMutation) MetadataSyncedAt() (r time.Time, exists bool) {
+	v := m.metadata_synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadataSyncedAt returns the old "metadata_synced_at" field's value of the MediaItem entity.
+// If the MediaItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaItemMutation) OldMetadataSyncedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadataSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadataSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadataSyncedAt: %w", err)
+	}
+	return oldValue.MetadataSyncedAt, nil
+}
+
+// ClearMetadataSyncedAt clears the value of the "metadata_synced_at" field.
+func (m *MediaItemMutation) ClearMetadataSyncedAt() {
+	m.metadata_synced_at = nil
+	m.clearedFields[mediaitem.FieldMetadataSyncedAt] = struct{}{}
+}
+
+// MetadataSyncedAtCleared returns if the "metadata_synced_at" field was cleared in this mutation.
+func (m *MediaItemMutation) MetadataSyncedAtCleared() bool {
+	_, ok := m.clearedFields[mediaitem.FieldMetadataSyncedAt]
+	return ok
+}
+
+// ResetMetadataSyncedAt resets all changes to the "metadata_synced_at" field.
+func (m *MediaItemMutation) ResetMetadataSyncedAt() {
+	m.metadata_synced_at = nil
+	delete(m.clearedFields, mediaitem.FieldMetadataSyncedAt)
+}
+
 // SetLibraryID sets the "library" edge to the Library entity by id.
 func (m *MediaItemMutation) SetLibraryID(id uuid.UUID) {
 	m.library = &id
@@ -2906,7 +3009,7 @@ func (m *MediaItemMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MediaItemMutation) Fields() []string {
-	fields := make([]string, 0, 25)
+	fields := make([]string, 0, 27)
 	if m.kind != nil {
 		fields = append(fields, mediaitem.FieldKind)
 	}
@@ -2982,6 +3085,12 @@ func (m *MediaItemMutation) Fields() []string {
 	if m.locked_fields != nil {
 		fields = append(fields, mediaitem.FieldLockedFields)
 	}
+	if m.provider_ids != nil {
+		fields = append(fields, mediaitem.FieldProviderIds)
+	}
+	if m.metadata_synced_at != nil {
+		fields = append(fields, mediaitem.FieldMetadataSyncedAt)
+	}
 	return fields
 }
 
@@ -3040,6 +3149,10 @@ func (m *MediaItemMutation) Field(name string) (ent.Value, bool) {
 		return m.LockData()
 	case mediaitem.FieldLockedFields:
 		return m.LockedFields()
+	case mediaitem.FieldProviderIds:
+		return m.ProviderIds()
+	case mediaitem.FieldMetadataSyncedAt:
+		return m.MetadataSyncedAt()
 	}
 	return nil, false
 }
@@ -3099,6 +3212,10 @@ func (m *MediaItemMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldLockData(ctx)
 	case mediaitem.FieldLockedFields:
 		return m.OldLockedFields(ctx)
+	case mediaitem.FieldProviderIds:
+		return m.OldProviderIds(ctx)
+	case mediaitem.FieldMetadataSyncedAt:
+		return m.OldMetadataSyncedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown MediaItem field %s", name)
 }
@@ -3283,6 +3400,20 @@ func (m *MediaItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLockedFields(v)
 		return nil
+	case mediaitem.FieldProviderIds:
+		v, ok := value.(metadata.ProviderIDs)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderIds(v)
+		return nil
+	case mediaitem.FieldMetadataSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadataSyncedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)
 }
@@ -3445,6 +3576,12 @@ func (m *MediaItemMutation) ClearedFields() []string {
 	if m.FieldCleared(mediaitem.FieldLockedFields) {
 		fields = append(fields, mediaitem.FieldLockedFields)
 	}
+	if m.FieldCleared(mediaitem.FieldProviderIds) {
+		fields = append(fields, mediaitem.FieldProviderIds)
+	}
+	if m.FieldCleared(mediaitem.FieldMetadataSyncedAt) {
+		fields = append(fields, mediaitem.FieldMetadataSyncedAt)
+	}
 	return fields
 }
 
@@ -3491,6 +3628,12 @@ func (m *MediaItemMutation) ClearField(name string) error {
 		return nil
 	case mediaitem.FieldLockedFields:
 		m.ClearLockedFields()
+		return nil
+	case mediaitem.FieldProviderIds:
+		m.ClearProviderIds()
+		return nil
+	case mediaitem.FieldMetadataSyncedAt:
+		m.ClearMetadataSyncedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem nullable field %s", name)
@@ -3574,6 +3717,12 @@ func (m *MediaItemMutation) ResetField(name string) error {
 		return nil
 	case mediaitem.FieldLockedFields:
 		m.ResetLockedFields()
+		return nil
+	case mediaitem.FieldProviderIds:
+		m.ResetProviderIds()
+		return nil
+	case mediaitem.FieldMetadataSyncedAt:
+		m.ResetMetadataSyncedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem field %s", name)
@@ -3723,6 +3872,630 @@ func (m *MediaItemMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown MediaItem edge %s", name)
+}
+
+// MetadataCacheMutation represents an operation that mutates the MetadataCache nodes in the graph.
+type MetadataCacheMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	provider      *string
+	kind          *string
+	key           *string
+	payload       *[]byte
+	not_found     *bool
+	fetched_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*MetadataCache, error)
+	predicates    []predicate.MetadataCache
+}
+
+var _ ent.Mutation = (*MetadataCacheMutation)(nil)
+
+// metadatacacheOption allows management of the mutation configuration using functional options.
+type metadatacacheOption func(*MetadataCacheMutation)
+
+// newMetadataCacheMutation creates new mutation for the MetadataCache entity.
+func newMetadataCacheMutation(c config, op Op, opts ...metadatacacheOption) *MetadataCacheMutation {
+	m := &MetadataCacheMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMetadataCache,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMetadataCacheID sets the ID field of the mutation.
+func withMetadataCacheID(id uuid.UUID) metadatacacheOption {
+	return func(m *MetadataCacheMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MetadataCache
+		)
+		m.oldValue = func(ctx context.Context) (*MetadataCache, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MetadataCache.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMetadataCache sets the old MetadataCache of the mutation.
+func withMetadataCache(node *MetadataCache) metadatacacheOption {
+	return func(m *MetadataCacheMutation) {
+		m.oldValue = func(context.Context) (*MetadataCache, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MetadataCacheMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MetadataCacheMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MetadataCache entities.
+func (m *MetadataCacheMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MetadataCacheMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MetadataCacheMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MetadataCache.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProvider sets the "provider" field.
+func (m *MetadataCacheMutation) SetProvider(s string) {
+	m.provider = &s
+}
+
+// Provider returns the value of the "provider" field in the mutation.
+func (m *MetadataCacheMutation) Provider() (r string, exists bool) {
+	v := m.provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProvider returns the old "provider" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProvider: %w", err)
+	}
+	return oldValue.Provider, nil
+}
+
+// ResetProvider resets all changes to the "provider" field.
+func (m *MetadataCacheMutation) ResetProvider() {
+	m.provider = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *MetadataCacheMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *MetadataCacheMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *MetadataCacheMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetKey sets the "key" field.
+func (m *MetadataCacheMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *MetadataCacheMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *MetadataCacheMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *MetadataCacheMutation) SetPayload(b []byte) {
+	m.payload = &b
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *MetadataCacheMutation) Payload() (r []byte, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldPayload(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ClearPayload clears the value of the "payload" field.
+func (m *MetadataCacheMutation) ClearPayload() {
+	m.payload = nil
+	m.clearedFields[metadatacache.FieldPayload] = struct{}{}
+}
+
+// PayloadCleared returns if the "payload" field was cleared in this mutation.
+func (m *MetadataCacheMutation) PayloadCleared() bool {
+	_, ok := m.clearedFields[metadatacache.FieldPayload]
+	return ok
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *MetadataCacheMutation) ResetPayload() {
+	m.payload = nil
+	delete(m.clearedFields, metadatacache.FieldPayload)
+}
+
+// SetNotFound sets the "not_found" field.
+func (m *MetadataCacheMutation) SetNotFound(b bool) {
+	m.not_found = &b
+}
+
+// NotFound returns the value of the "not_found" field in the mutation.
+func (m *MetadataCacheMutation) NotFound() (r bool, exists bool) {
+	v := m.not_found
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotFound returns the old "not_found" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldNotFound(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotFound is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotFound requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotFound: %w", err)
+	}
+	return oldValue.NotFound, nil
+}
+
+// ResetNotFound resets all changes to the "not_found" field.
+func (m *MetadataCacheMutation) ResetNotFound() {
+	m.not_found = nil
+}
+
+// SetFetchedAt sets the "fetched_at" field.
+func (m *MetadataCacheMutation) SetFetchedAt(t time.Time) {
+	m.fetched_at = &t
+}
+
+// FetchedAt returns the value of the "fetched_at" field in the mutation.
+func (m *MetadataCacheMutation) FetchedAt() (r time.Time, exists bool) {
+	v := m.fetched_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFetchedAt returns the old "fetched_at" field's value of the MetadataCache entity.
+// If the MetadataCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MetadataCacheMutation) OldFetchedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFetchedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFetchedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFetchedAt: %w", err)
+	}
+	return oldValue.FetchedAt, nil
+}
+
+// ResetFetchedAt resets all changes to the "fetched_at" field.
+func (m *MetadataCacheMutation) ResetFetchedAt() {
+	m.fetched_at = nil
+}
+
+// Where appends a list predicates to the MetadataCacheMutation builder.
+func (m *MetadataCacheMutation) Where(ps ...predicate.MetadataCache) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MetadataCacheMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MetadataCacheMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MetadataCache, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MetadataCacheMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MetadataCacheMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MetadataCache).
+func (m *MetadataCacheMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MetadataCacheMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.provider != nil {
+		fields = append(fields, metadatacache.FieldProvider)
+	}
+	if m.kind != nil {
+		fields = append(fields, metadatacache.FieldKind)
+	}
+	if m.key != nil {
+		fields = append(fields, metadatacache.FieldKey)
+	}
+	if m.payload != nil {
+		fields = append(fields, metadatacache.FieldPayload)
+	}
+	if m.not_found != nil {
+		fields = append(fields, metadatacache.FieldNotFound)
+	}
+	if m.fetched_at != nil {
+		fields = append(fields, metadatacache.FieldFetchedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MetadataCacheMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case metadatacache.FieldProvider:
+		return m.Provider()
+	case metadatacache.FieldKind:
+		return m.Kind()
+	case metadatacache.FieldKey:
+		return m.Key()
+	case metadatacache.FieldPayload:
+		return m.Payload()
+	case metadatacache.FieldNotFound:
+		return m.NotFound()
+	case metadatacache.FieldFetchedAt:
+		return m.FetchedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MetadataCacheMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case metadatacache.FieldProvider:
+		return m.OldProvider(ctx)
+	case metadatacache.FieldKind:
+		return m.OldKind(ctx)
+	case metadatacache.FieldKey:
+		return m.OldKey(ctx)
+	case metadatacache.FieldPayload:
+		return m.OldPayload(ctx)
+	case metadatacache.FieldNotFound:
+		return m.OldNotFound(ctx)
+	case metadatacache.FieldFetchedAt:
+		return m.OldFetchedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MetadataCache field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MetadataCacheMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case metadatacache.FieldProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProvider(v)
+		return nil
+	case metadatacache.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case metadatacache.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case metadatacache.FieldPayload:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case metadatacache.FieldNotFound:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotFound(v)
+		return nil
+	case metadatacache.FieldFetchedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFetchedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MetadataCache field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MetadataCacheMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MetadataCacheMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MetadataCacheMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MetadataCache numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MetadataCacheMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(metadatacache.FieldPayload) {
+		fields = append(fields, metadatacache.FieldPayload)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MetadataCacheMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MetadataCacheMutation) ClearField(name string) error {
+	switch name {
+	case metadatacache.FieldPayload:
+		m.ClearPayload()
+		return nil
+	}
+	return fmt.Errorf("unknown MetadataCache nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MetadataCacheMutation) ResetField(name string) error {
+	switch name {
+	case metadatacache.FieldProvider:
+		m.ResetProvider()
+		return nil
+	case metadatacache.FieldKind:
+		m.ResetKind()
+		return nil
+	case metadatacache.FieldKey:
+		m.ResetKey()
+		return nil
+	case metadatacache.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case metadatacache.FieldNotFound:
+		m.ResetNotFound()
+		return nil
+	case metadatacache.FieldFetchedAt:
+		m.ResetFetchedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MetadataCache field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MetadataCacheMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MetadataCacheMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MetadataCacheMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MetadataCacheMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MetadataCacheMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MetadataCacheMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MetadataCacheMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MetadataCache unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MetadataCacheMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MetadataCache edge %s", name)
 }
 
 // PlayStateMutation represents an operation that mutates the PlayState nodes in the graph.

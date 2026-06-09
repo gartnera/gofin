@@ -43,6 +43,13 @@ unsupported.
   rescans (`POST /Items/{id}`).
 - [x] Live index updates via a filesystem watcher (`fsnotify`); manual rescan via
   `POST /Library/Refresh`.
+- [x] **Remote metadata** for movies and TV series via **TMDb** (overview,
+  genres, studios, cast/crew, ratings, premiere date and **poster**) — opt-in
+  (set `metadata.enabled` + a `tmdb_token` in config). Fetching runs in a
+  background worker, never blocks scanning, reuses the local library before any
+  remote call, and caches every response (including posters) on disk so rescans
+  and restarts make no repeat requests. Local NFO/artwork and locked fields
+  always win — remote only fills gaps.
 
 ### Not supported
 
@@ -54,11 +61,11 @@ real implementation behind it):
   hard-disabled. Clients must support the source codecs/containers.
 - [ ] **External subtitle files** (`.srt`, `.vtt`, `.ass`) — only subtitle
   streams already embedded in the media file are surfaced.
-- [ ] **Remote artwork / metadata providers** (TMDB, TVDB, IMDb, MusicBrainz) —
-  artwork and metadata come only from local files (filenames, embedded tags,
-  NFO sidecars and on-disk image files); nothing is fetched from the internet.
-  Image art embedded inside media files (e.g. ID3 cover art) is also not yet
-  extracted — only standalone image files on disk are served.
+- [ ] **Remote metadata beyond movies/series** — TMDb enrichment covers movies
+  and TV series (see Supported); per-episode/season remote details, **music**
+  providers (MusicBrainz), backdrops, and other providers (TVDB, IMDb) are not
+  fetched. Image art embedded inside media files (e.g. ID3 cover art) is also not
+  extracted — only standalone and downloaded image files on disk are served.
 - [ ] **Collections, Playlists, Favorites, user ratings.**
 - [ ] **QuickConnect** — advertised as disabled.
 - [ ] **Live TV / DVR**, **DLNA/UPnP**, **plugins**, **SyncPlay** — stubbed or

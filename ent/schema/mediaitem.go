@@ -5,6 +5,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -95,6 +96,19 @@ func (MediaItem) Fields() []ent.Field {
 		// overwrite even when the item as a whole isn't locked.
 		field.JSON("locked_fields", []string{}).
 			Optional(),
+		// provider_ids records the remote-metadata identifiers resolved for this
+		// item (e.g. {"Tmdb": "27205"}). Stamped once so a movie/series is looked
+		// up a single time and reused across episodes and rescans.
+		field.JSON("provider_ids", metadata.ProviderIDs{}).
+			Optional(),
+		// metadata_synced_at marks when remote enrichment last completed for this
+		// item. Nil means "not yet enriched": the background enricher's startup
+		// and periodic sweep enqueue every nil item, so enrichment survives
+		// restarts and dropped channel sends. Set on success or a definitive
+		// not-found (and on locked items, which are never re-swept).
+		field.Time("metadata_synced_at").
+			Optional().
+			Nillable(),
 	}
 }
 
@@ -139,5 +153,9 @@ func (MediaItem) Indexes() []ent.Index {
 		// "Latest" carousels order a library's items by mtime descending.
 		index.Fields("mtime").
 			Edges("library"),
+		// The enricher's sweep finds items not yet enriched (metadata_synced_at
+		// IS NULL). After the initial pass almost every row is non-null, so an
+		// index here keeps the periodic sweep from scanning the whole table.
+		index.Fields("metadata_synced_at"),
 	}
 }

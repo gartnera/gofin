@@ -15,6 +15,9 @@ type Library func(*sql.Selector)
 // MediaItem is the predicate function for mediaitem builders.
 type MediaItem func(*sql.Selector)
 
+// MetadataCache is the predicate function for metadatacache builders.
+type MetadataCache func(*sql.Selector)
+
 // PlayState is the predicate function for playstate builders.
 type PlayState func(*sql.Selector)
 
