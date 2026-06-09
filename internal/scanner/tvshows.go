@@ -7,6 +7,7 @@ import (
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/artwork"
 	"github.com/gartnera/gofin/internal/nfo"
 )
 
@@ -39,6 +40,16 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 			return err
 		}
 	}
+	// Enrich the Series poster while still bare, so repeated episode scans don't
+	// re-write it every time.
+	if series.ImagePath == "" {
+		if img := artwork.Series(path, lib.Path); img != "" {
+			if err := series.Update().SetImagePath(img).Exec(ctx); err != nil {
+				return err
+			}
+			series.ImagePath = img
+		}
+	}
 	seasonName := fmt.Sprintf("Season %d", parsed.Season)
 	season, err := s.findOrCreateFolder(ctx, lib, mediaitem.KindSeason, seasonName, &series.ID)
 	if err != nil {
@@ -58,6 +69,14 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 			return err
 		}
 	}
+	if season.ImagePath == "" {
+		if img := artwork.Season(path, lib.Path, int(parsed.Season)); img != "" {
+			if err := season.Update().SetImagePath(img).Exec(ctx); err != nil {
+				return err
+			}
+			season.ImagePath = img
+		}
+	}
 
 	// A sidecar "<episode>.nfo" overrides the title parsed from the filename.
 	nf := nfo.Episode(path)
@@ -73,6 +92,7 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		}
 	}
 	probed := s.probeFile(ctx, path)
+	img := artwork.Episode(path)
 
 	if existing != nil {
 		// Always refresh on-disk/probe facts; preserve locked metadata edits.
@@ -82,6 +102,7 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 			SetMediaStreams(probed.Streams).
 			SetMtime(info.ModTime().UnixNano()).
 			SetSize(info.Size()).
+			SetImagePath(img).
 			SetParentID(season.ID)
 		if !metaLocked(existing, "Name") {
 			upd = upd.SetName(title)
@@ -113,6 +134,7 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 		SetSize(info.Size()).
 		SetIndexNumber(parsed.Episode).
 		SetParentIndexNumber(parsed.Season).
+		SetImagePath(img).
 		SetLibrary(lib).
 		SetParentID(season.ID)
 	if parsed.EndEpisode != nil {

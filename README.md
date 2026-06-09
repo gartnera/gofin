@@ -27,6 +27,11 @@ unsupported.
   numbering, multi-episode ranges, date-based detection).
 - [x] Local **NFO** sidecar metadata (Kodi/Jellyfin `.nfo`: overview, genres,
   studios, cast/crew, ratings, premiere date).
+- [x] Local **artwork** — poster/cover/thumbnail image files discovered on disk
+  (per-file `<name>-poster`/`<name>.jpg` sidecars and folder-level
+  `poster`/`folder`/`cover`/`seasonNN-poster` images, following Kodi/Jellyfin
+  naming) and served as the item's Primary image. Episodes and tracks without
+  their own image inherit the series poster / album cover.
 - [x] Stream/codec metadata and durations via `ffprobe` when available — video,
   audio and **embedded** subtitle streams are exposed as `MediaStreams`. Probing
   is pluggable and degrades gracefully when ffprobe is not installed.
@@ -49,10 +54,11 @@ real implementation behind it):
   hard-disabled. Clients must support the source codecs/containers.
 - [ ] **External subtitle files** (`.srt`, `.vtt`, `.ass`) — only subtitle
   streams already embedded in the media file are surfaced.
-- [ ] **Artwork / images** — the API and on-disk image-serving path exist, but
-  the scanner does not yet populate poster/cover paths, so no images are served.
-- [ ] **Remote metadata providers** (TMDB, TVDB, IMDb, MusicBrainz) — metadata
-  comes only from filenames, embedded tags and local NFO sidecars.
+- [ ] **Remote artwork / metadata providers** (TMDB, TVDB, IMDb, MusicBrainz) —
+  artwork and metadata come only from local files (filenames, embedded tags,
+  NFO sidecars and on-disk image files); nothing is fetched from the internet.
+  Image art embedded inside media files (e.g. ID3 cover art) is also not yet
+  extracted — only standalone image files on disk are served.
 - [ ] **Collections, Playlists, Favorites, user ratings.**
 - [ ] **QuickConnect** — advertised as disabled.
 - [ ] **Live TV / DVR**, **DLNA/UPnP**, **plugins**, **SyncPlay** — stubbed or

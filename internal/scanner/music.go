@@ -9,6 +9,7 @@ import (
 	"github.com/dhowden/tag"
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/artwork"
 	"github.com/gartnera/gofin/internal/nfo"
 )
 
@@ -78,6 +79,14 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 			return err
 		}
 	}
+	if artist.ImagePath == "" {
+		if img := artwork.Artist(path, lib.Path); img != "" {
+			if err := artist.Update().SetImagePath(img).Exec(ctx); err != nil {
+				return err
+			}
+			artist.ImagePath = img
+		}
+	}
 	album, err := s.findOrCreateFolder(ctx, lib, mediaitem.KindMusicAlbum, meta.Album, &artist.ID)
 	if err != nil {
 		return fmt.Errorf("album %q: %w", meta.Album, err)
@@ -93,6 +102,14 @@ func (s *Scanner) indexAudio(ctx context.Context, lib *ent.Library, path string,
 	if album.Overview == "" {
 		if err := s.applyNFO(ctx, album, nfo.Album(path, lib.Path)); err != nil {
 			return err
+		}
+	}
+	if album.ImagePath == "" {
+		if img := artwork.Album(path, lib.Path); img != "" {
+			if err := album.Update().SetImagePath(img).Exec(ctx); err != nil {
+				return err
+			}
+			album.ImagePath = img
 		}
 	}
 

@@ -69,6 +69,8 @@ func setupEnv(t *testing.T) *testEnv {
 
 	// Movies library (note the nested subdirectory: arbitrary on-disk layout).
 	writeMedia(t, filepath.Join(root, "movies", "Inception (2010).mp4"), "inception-video-payload")
+	// A per-file poster sidecar so the image route has bytes to serve.
+	writeMedia(t, filepath.Join(root, "movies", "Inception (2010)-poster.jpg"), "fake-jpeg-bytes")
 	writeMedia(t, filepath.Join(root, "movies", "nested", "The Matrix (1999).mkv"), "matrix-video-payload")
 	// TV library.
 	writeMedia(t, filepath.Join(root, "tv", "Breaking Bad", "Season 01", "Breaking Bad - S01E01 - Pilot.mp4"), "bb-s01e01-payload")
@@ -774,6 +776,74 @@ func TestAudioItemExposesAlbumLinks(t *testing.T) {
 	}
 	if len(track.GetAlbumArtists()) == 0 {
 		t.Error("AlbumArtists is empty")
+	}
+}
+
+// TestPrimaryImageServed proves the end-to-end artwork path: the scanner picks
+// up a poster sidecar, the mapper advertises a Primary image tag, and the image
+// route serves the file's bytes (unauthenticated, as Jellyfin does).
+func TestPrimaryImageServed(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	res, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		SearchTerm("Inception").
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_MOVIE}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatal("Inception not found")
+	}
+	movie := res.Items[0]
+	if movie.ImageTags["Primary"] == "" {
+		t.Fatalf("movie has no Primary image tag: %+v", movie.ImageTags)
+	}
+
+	url := fmt.Sprintf("%s/Items/%s/Images/Primary", env.srv.URL, movie.GetId())
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("image status = %d, want 200", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != "fake-jpeg-bytes" {
+		t.Errorf("image body = %q, want the poster file's bytes", string(body))
+	}
+}
+
+// TestImageNotFoundForItemWithoutPoster confirms an item with no image yields a
+// 404 rather than serving something stale.
+func TestImageNotFoundForItemWithoutPoster(t *testing.T) {
+	env := setupEnv(t)
+	client := authedClient(env.srv.URL, env.token)
+	ctx := context.Background()
+
+	res, _, err := client.ItemsAPI.GetItems(ctx).
+		Recursive(true).
+		SearchTerm("Matrix").
+		IncludeItemTypes([]jfapi.BaseItemKind{jfapi.BASEITEMKIND_MOVIE}).
+		Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatal("Matrix not found")
+	}
+	url := fmt.Sprintf("%s/Items/%s/Images/Primary", env.srv.URL, res.Items[0].GetId())
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("image status = %d, want 404", resp.StatusCode)
 	}
 }
 
