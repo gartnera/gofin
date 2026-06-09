@@ -30,8 +30,9 @@ func (s *Server) handleUserViews(w http.ResponseWriter, r *http.Request) {
 }
 
 // withGrandparent eagerly loads two parent levels so the item mapper can fill
-// in fields that depend on the grandparent — namely an Audio track's artist
-// id (track -> album -> artist).
+// in fields that depend on the grandparent — an Audio track's artist id
+// (track -> album -> artist) and an Episode's inherited series poster
+// (episode -> season -> series).
 func withGrandparent(q *ent.MediaItemQuery) {
 	q.WithParent()
 }

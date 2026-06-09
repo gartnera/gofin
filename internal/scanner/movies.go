@@ -6,6 +6,7 @@ import (
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/artwork"
 	"github.com/gartnera/gofin/internal/nfo"
 )
 
@@ -23,6 +24,9 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 	probed := s.probeFile(ctx, path)
 	// A local NFO, when present, overrides the title parsed from the filename.
 	nf := nfo.Movie(path, lib.Path)
+	// image_path tracks the poster on disk; an empty result clears a stale one,
+	// mirroring how the probe/container facts are always refreshed.
+	img := artwork.Movie(path, lib.Path)
 	name := parsed.Title
 	if nf != nil && nf.Title != "" {
 		name = nf.Title
@@ -35,7 +39,8 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 			SetRunTimeTicks(probed.RunTimeTicks).
 			SetMediaStreams(probed.Streams).
 			SetMtime(info.ModTime().UnixNano()).
-			SetSize(info.Size())
+			SetSize(info.Size()).
+			SetImagePath(img)
 		if !metaLocked(existing, "Name") {
 			upd = upd.SetName(name)
 		}
@@ -58,6 +63,7 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 		SetMediaStreams(probed.Streams).
 		SetMtime(info.ModTime().UnixNano()).
 		SetSize(info.Size()).
+		SetImagePath(img).
 		SetLibrary(lib)
 	if parsed.Year != nil {
 		create = create.SetProductionYear(*parsed.Year)

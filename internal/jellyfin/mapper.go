@@ -145,8 +145,31 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 			dto.SetAlbumId(FormatID(it.Edges.Parent.ID))
 		}
 	}
+	// An item with its own image advertises a Primary tag (the image route serves
+	// it by item ID). Otherwise it inherits the nearest ancestor's poster — a
+	// series poster for an episode, an album cover for a track — so the client
+	// renders a thumbnail instead of a blank tile. Inheritance relies on the
+	// parent chain being eager-loaded; it is best-effort when it isn't.
 	if it.ImagePath != "" {
 		dto.SetImageTags(map[string]string{"Primary": FormatID(it.ID)})
+	} else if anc := nearestImageAncestor(it); anc != nil {
+		dto.SetParentPrimaryImageItemId(FormatID(anc.ID))
+		dto.SetParentPrimaryImageTag(FormatID(anc.ID))
+	}
+	// The web client's episode and track detail views read the series/album image
+	// tags specifically, so surface them when the relevant ancestor carries one.
+	switch it.Kind {
+	case mediaitem.KindEpisode:
+		if series := seriesOf(it); series != nil {
+			dto.SetSeriesId(FormatID(series.ID))
+			if series.ImagePath != "" {
+				dto.SetSeriesPrimaryImageTag(FormatID(series.ID))
+			}
+		}
+	case mediaitem.KindAudio:
+		if it.Edges.Parent != nil && it.Edges.Parent.ImagePath != "" {
+			dto.SetAlbumPrimaryImageTag(FormatID(it.Edges.Parent.ID))
+		}
 	}
 
 	// Reflect the persisted lock state so the web metadata editor shows the
@@ -170,6 +193,30 @@ func MapItem(it *ent.MediaItem, serverID string, ps *ent.PlayState) api.BaseItem
 	}
 	dto.SetUserData(UserDataFor(it.ID, it.RunTimeTicks, ps))
 	return *dto
+}
+
+// nearestImageAncestor walks an item's eager-loaded parent chain and returns
+// the closest ancestor that has a poster on disk, or nil if none does (or the
+// chain isn't loaded). Used so an episode/track without its own image inherits
+// its season/series or album/artist artwork.
+func nearestImageAncestor(it *ent.MediaItem) *ent.MediaItem {
+	for p := it.Edges.Parent; p != nil; p = p.Edges.Parent {
+		if p.ImagePath != "" {
+			return p
+		}
+	}
+	return nil
+}
+
+// seriesOf returns the Series ancestor of an episode from its eager-loaded
+// parent chain (parent is the Season, grandparent the Series), or nil.
+func seriesOf(it *ent.MediaItem) *ent.MediaItem {
+	for p := it.Edges.Parent; p != nil; p = p.Edges.Parent {
+		if p.Kind == mediaitem.KindSeries {
+			return p
+		}
+	}
+	return nil
 }
 
 // UserDataFor builds the per-user UserItemDataDto for an item. runtimeTicks is

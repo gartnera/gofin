@@ -86,6 +86,21 @@ Minimal Jellyfin-compatible media server in Go.
   Artist are enriched only while still bare). It honours metadata locks
   (`metaLocked`): a locked field — or a fully locked item — is never overwritten
   by an NFO, just as it isn't by the filename/probe pass.
+- `internal/artwork` — locates local poster/cover/thumbnail image files on disk
+  (no decoding, just path resolution + existence checks), mirroring the layered
+  lookup and `belowRoot` guard of `internal/nfo`. Per-file sidecars
+  (`<name>-poster`/`<name>-thumb`/`<name>.<imgext>`) win over generic folder
+  images (`poster`/`folder`/`cover`/`default`, plus `movie`/`artist` and the
+  Jellyfin `seasonNN-poster` naming); `Series`/`Artist` use `findTopmost` so the
+  show/artist poster (higher in the tree) beats an intermediate season/album
+  image. The scanner's index funcs set `image_path` from these (playable items
+  refresh it like other on-disk facts; folders are enriched only while still
+  bare, like the NFO overlay). The mapper emits a `Primary` `ImageTags` entry for
+  an item with its own image and, for one without, inherits the nearest
+  ancestor's poster via `ParentPrimaryImage*` (and `SeriesPrimaryImageTag`/
+  `AlbumPrimaryImageTag`), which is why item queries eager-load two parent levels
+  (`withGrandparent`). The `/Items/{id}/Images/{type}` route serves the bytes.
+  Embedded (in-file) and remote artwork are out of scope.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
   IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
 - `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;

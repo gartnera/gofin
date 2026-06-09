@@ -203,6 +203,66 @@ func TestMapItemAudioWithoutGrandparentLeavesArtistIdEmpty(t *testing.T) {
 	}
 }
 
+func TestMapItemOwnImageEmitsPrimaryTag(t *testing.T) {
+	movie := &ent.MediaItem{
+		ID:        uuid.New(),
+		Kind:      mediaitem.KindMovie,
+		Name:      "Inception",
+		Path:      "/movies/Inception/Inception.mkv",
+		ImagePath: "/movies/Inception/poster.jpg",
+	}
+	dto := MapItem(movie, "srv", nil)
+	if dto.GetImageTags()["Primary"] != FormatID(movie.ID) {
+		t.Errorf("Primary image tag = %q, want %q", dto.GetImageTags()["Primary"], FormatID(movie.ID))
+	}
+}
+
+func TestMapItemEpisodeInheritsSeriesPoster(t *testing.T) {
+	series := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindSeries, Name: "Breaking Bad", ImagePath: "/tv/Breaking Bad/poster.jpg"}
+	season := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindSeason, Name: "Season 1"}
+	season.Edges.Parent = series
+	episode := &ent.MediaItem{
+		ID:   uuid.New(),
+		Kind: mediaitem.KindEpisode,
+		Name: "Pilot",
+		Path: "/tv/Breaking Bad/Season 01/S01E01.mkv",
+	}
+	episode.Edges.Parent = season
+
+	dto := MapItem(episode, "srv", nil)
+
+	// No own image, so a Primary tag must not be advertised.
+	if len(dto.GetImageTags()) != 0 {
+		t.Errorf("ImageTags = %v, want none for an episode without its own thumb", dto.GetImageTags())
+	}
+	// It inherits the series poster via the parent-primary fields...
+	if dto.GetParentPrimaryImageItemId() != FormatID(series.ID) {
+		t.Errorf("ParentPrimaryImageItemId = %q, want %q", dto.GetParentPrimaryImageItemId(), FormatID(series.ID))
+	}
+	// ...and surfaces the series image tag the detail view reads.
+	if dto.GetSeriesId() != FormatID(series.ID) {
+		t.Errorf("SeriesId = %q, want %q", dto.GetSeriesId(), FormatID(series.ID))
+	}
+	if dto.GetSeriesPrimaryImageTag() != FormatID(series.ID) {
+		t.Errorf("SeriesPrimaryImageTag = %q, want %q", dto.GetSeriesPrimaryImageTag(), FormatID(series.ID))
+	}
+}
+
+func TestMapItemTrackInheritsAlbumCover(t *testing.T) {
+	album := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindMusicAlbum, Name: "First Light", ImagePath: "/music/Echo Hill/First Light/cover.jpg"}
+	track := &ent.MediaItem{ID: uuid.New(), Kind: mediaitem.KindAudio, Name: "Sunrise", Path: "/music/x.opus"}
+	track.Edges.Parent = album
+
+	dto := MapItem(track, "srv", nil)
+
+	if dto.GetParentPrimaryImageItemId() != FormatID(album.ID) {
+		t.Errorf("ParentPrimaryImageItemId = %q, want %q", dto.GetParentPrimaryImageItemId(), FormatID(album.ID))
+	}
+	if dto.GetAlbumPrimaryImageTag() != FormatID(album.ID) {
+		t.Errorf("AlbumPrimaryImageTag = %q, want %q", dto.GetAlbumPrimaryImageTag(), FormatID(album.ID))
+	}
+}
+
 func TestQueryResultAlwaysEmitsItemsArray(t *testing.T) {
 	// The SDK marks Items as omitempty, which would crash the web client's
 	// `response.Items.length` read. QueryResult must defeat that.
