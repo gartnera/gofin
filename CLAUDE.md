@@ -105,6 +105,12 @@ Minimal Jellyfin-compatible media server in Go.
   `jellyfin.ParseID`.
 - Direct play only — no transcoding. Streaming uses `http.ServeContent` for
   range/seek support.
+- README.md has a "What's supported" / "Not supported" checklist that is the
+  user-facing source of truth for capabilities. Whenever you add, remove, or
+  change a feature (a new endpoint, media/library type, metadata source,
+  un-stubbing something, etc.), update those checkboxes in the same change so the
+  README stays accurate — move items between the two lists or add new ones as
+  needed.
 
 ## Testing
 - `go test ./... -race -cover`

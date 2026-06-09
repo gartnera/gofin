@@ -5,21 +5,63 @@ Jellyfin clients connect, authenticate, browse a library, and **direct play**
 video and audio. It is intentionally small: manual indexing, direct play only
 (no transcoding), and a SQLite-backed catalog.
 
-## Features
+## What's supported
 
-- Jellyfin-compatible HTTP API (responses use the model structs from
-  [`github.com/sj14/jellyfin-go`](https://github.com/sj14/jellyfin-go), so field
-  names match real Jellyfin).
-- Username/password auth with **bcrypt** hashing and persisted access tokens.
-- Movies, TV (Series → Season → Episode) and Music (Artist → Album → Track).
-- Direct play with HTTP range support (seeking) via `http.ServeContent`.
-- Playback state: watched status, resume positions (`/Sessions/Playing*`,
-  `/UserItems/Resume`, `UserData` on items).
-- Stream/codec metadata and durations via `ffprobe` when available (probing is
-  pluggable and degrades gracefully when it is not installed).
-- Paging, sorting and search on `/Items` (`Limit`, `StartIndex`, `SortBy`,
-  `searchTerm`).
-- [ent](https://entgo.io/) + SQLite (CGO `mattn/go-sqlite3`).
+gofin deliberately implements a focused subset of Jellyfin. The lists below are
+the source of truth for what works today — anything not listed should be assumed
+unsupported.
+
+### Supported
+
+- [x] Jellyfin-compatible HTTP API — responses reuse the model structs from
+  [`github.com/sj14/jellyfin-go`](https://github.com/sj14/jellyfin-go), so JSON
+  field names match real Jellyfin and stock clients can connect.
+- [x] Username/password auth with **bcrypt** hashing and persisted access tokens.
+- [x] Admin vs. non-admin users (admin-only scan/refresh and metadata-edit
+  endpoints).
+- [x] Movies, TV (Series → Season → Episode) and Music (Artist → Album → Track).
+- [x] **Direct play** of video and audio with HTTP range support (seeking) via
+  `http.ServeContent`.
+- [x] Filename-based metadata for video, embedded-tag metadata for audio,
+  including Jellyfin-style TV episode naming (flat shows, anime absolute
+  numbering, multi-episode ranges, date-based detection).
+- [x] Local **NFO** sidecar metadata (Kodi/Jellyfin `.nfo`: overview, genres,
+  studios, cast/crew, ratings, premiere date).
+- [x] Stream/codec metadata and durations via `ffprobe` when available — video,
+  audio and **embedded** subtitle streams are exposed as `MediaStreams`. Probing
+  is pluggable and degrades gracefully when ffprobe is not installed.
+- [x] Playback state: watched status, play count, resume positions
+  (`/Sessions/Playing*`, `/UserItems/Resume`, `UserData` on items).
+- [x] Paging, sorting and search on `/Items` (`Limit`, `StartIndex`, `SortBy`,
+  `searchTerm`), plus `/Items/Latest` and `/Shows/NextUp`.
+- [x] Metadata editing with per-field / whole-item **locks** that survive
+  rescans (`POST /Items/{id}`).
+- [x] Live index updates via a filesystem watcher (`fsnotify`); manual rescan via
+  `POST /Library/Refresh`.
+- [x] [ent](https://entgo.io/) + SQLite (CGO `mattn/go-sqlite3`) catalog.
+
+### Not supported
+
+These are either absent or intentionally stubbed (the endpoint exists and
+returns an empty/benign response so stock clients don't error, but there is no
+real implementation behind it):
+
+- [ ] **Transcoding / remuxing** — direct play only; `SupportsTranscoding` is
+  hard-disabled. Clients must support the source codecs/containers.
+- [ ] **External subtitle files** (`.srt`, `.vtt`, `.ass`) — only subtitle
+  streams already embedded in the media file are surfaced.
+- [ ] **Artwork / images** — the API and on-disk image-serving path exist, but
+  the scanner does not yet populate poster/cover paths, so no images are served.
+- [ ] **Remote metadata providers** (TMDB, TVDB, IMDb, MusicBrainz) — metadata
+  comes only from filenames, embedded tags and local NFO sidecars.
+- [ ] **Collections, Playlists, Favorites, user ratings.**
+- [ ] **QuickConnect** — advertised as disabled.
+- [ ] **Live TV / DVR**, **DLNA/UPnP**, **plugins**, **SyncPlay** — stubbed or
+  absent.
+- [ ] **Recommendations / similar items**, **intro & credits detection**,
+  genre/studio/artist *browse* facets — stubbed (return empty).
+- [ ] **Multiple editions/versions** of one movie are not grouped (each file is a
+  separate item).
 
 ## Layout on disk vs. in the API
 
