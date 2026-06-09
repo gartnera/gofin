@@ -38,7 +38,6 @@ unsupported.
   rescans (`POST /Items/{id}`).
 - [x] Live index updates via a filesystem watcher (`fsnotify`); manual rescan via
   `POST /Library/Refresh`.
-- [x] [ent](https://entgo.io/) + SQLite (CGO `mattn/go-sqlite3`) catalog.
 
 ### Not supported
 
