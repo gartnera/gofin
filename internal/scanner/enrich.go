@@ -165,7 +165,14 @@ func (s *Scanner) enrichItem(ctx context.Context, id uuid.UUID) {
 		}
 		return
 	}
-	s.applyRemote(ctx, id, res)
+	// Download the poster (network + disk I/O) here, outside s.mu, so a slow
+	// image host can't stall scans. Only bother when the item has no local
+	// artwork; applyRemote re-checks under the lock before using the path.
+	poster := ""
+	if it.ImagePath == "" {
+		poster = s.cacheImage(ctx, res)
+	}
+	s.applyRemote(ctx, id, res, poster)
 }
 
 // lookup resolves a remote result for (kind, key), consulting the persistent
@@ -234,8 +241,10 @@ func (s *Scanner) storeCache(ctx context.Context, provider, kind, key string, pa
 // are currently empty and not user-locked — the mirror of applyNFO, so a local
 // NFO (applied at scan time) and user edits always win and remote merely fills
 // gaps. provider_ids is always recorded (it's identity, not editable metadata),
-// and metadata_synced_at is stamped so the item is considered done.
-func (s *Scanner) applyRemote(ctx context.Context, id uuid.UUID, res metadata.Result) {
+// and metadata_synced_at is stamped so the item is considered done. posterPath
+// is the already-downloaded local poster ("" if none); the download happens in
+// the caller, outside s.mu, so this lock-held write does no network I/O.
+func (s *Scanner) applyRemote(ctx context.Context, id uuid.UUID, res metadata.Result, posterPath string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	it, err := s.client.MediaItem.Get(ctx, id)
@@ -279,11 +288,10 @@ func (s *Scanner) applyRemote(ctx context.Context, id uuid.UUID, res metadata.Re
 	if len(res.ProviderIDs) > 0 {
 		upd.SetProviderIds(mergeIDs(it.ProviderIds, res.ProviderIDs))
 	}
-	// Only fall back to the remote poster when no local artwork was found.
-	if it.ImagePath == "" {
-		if p := s.cacheImage(ctx, res); p != "" {
-			upd.SetImagePath(p)
-		}
+	// Only fall back to the remote poster when no local artwork was found
+	// (re-checked under the lock in case a scan set image_path meanwhile).
+	if it.ImagePath == "" && posterPath != "" {
+		upd.SetImagePath(posterPath)
 	}
 	upd.SetMetadataSyncedAt(time.Now())
 	_ = upd.Exec(ctx)
