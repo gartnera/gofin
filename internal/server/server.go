@@ -208,6 +208,10 @@ func (s *Server) routes() {
 	// the player doesn't bail out before it issues PlaybackInfo.
 	s.mux.HandleFunc("GET /users/{userId}/items/{itemId}/intros", s.requireAuth(s.handleEmptyQuery))
 	s.mux.HandleFunc("GET /items/{itemId}/intros", s.requireAuth(s.handleEmptyQuery))
+	// Media segments (intro/outro/credits skip markers): gofin doesn't detect
+	// them, so return an empty result rather than 404 — the client just shows
+	// no skip buttons.
+	s.mux.HandleFunc("GET /mediasegments/{itemId}", s.requireAuth(s.handleEmptyQuery))
 
 	// Playback.
 	s.mux.HandleFunc("POST /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
