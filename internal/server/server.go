@@ -90,6 +90,18 @@ func normalizePath(next http.Handler) http.Handler {
 			return
 		}
 		p := strings.ToLower(r.URL.Path)
+		// Emby/Jellyfin clients route the entire API under a legacy base path
+		// (`/emby/...`, sometimes `/jellyfin/...`). Strip it so the bare routes
+		// match — without this, login (`/emby/Users/AuthenticateByName`) 404s.
+		for _, prefix := range []string{"/emby", "/jellyfin"} {
+			if p == prefix || strings.HasPrefix(p, prefix+"/") {
+				p = p[len(prefix):]
+				if p == "" {
+					p = "/"
+				}
+				break
+			}
+		}
 		// Jellyfin clients append the container as a fake extension on stream
 		// URLs (`/videos/{id}/stream.mp4`). Strip it so a single route matches.
 		if i := strings.LastIndex(p, "/stream."); i >= 0 {
