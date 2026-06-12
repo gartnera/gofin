@@ -555,6 +555,13 @@ func TestLatestAndNextUpAndIntros(t *testing.T) {
 	if _, ok := intros["Items"].([]any); !ok {
 		t.Errorf("Intros.Items = %v, want []", intros["Items"])
 	}
+
+	// MediaSegments (intro/outro/credits skip markers) is also QueryResult-shaped;
+	// gofin detects none, so it must return an empty Items array rather than 404.
+	segments := getJSON[map[string]any](t, env.srv.URL+"/MediaSegments/"+movieID, token)
+	if _, ok := segments["Items"].([]any); !ok {
+		t.Errorf("MediaSegments.Items = %v, want []", segments["Items"])
+	}
 }
 
 func TestLibraryViewResolvableAsItem(t *testing.T) {
