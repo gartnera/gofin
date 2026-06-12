@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -678,6 +679,39 @@ func TestStreamWithContainerExtension(t *testing.T) {
 	}
 	if ct := resp.Header.Get("Content-Type"); ct == "" || ct[:5] != "video" {
 		t.Errorf("Content-Type = %q, want video/*", ct)
+	}
+}
+
+// TestEmbyBasePathPrefix verifies that requests routed under the legacy
+// `/emby` base path (which the bundled web client uses) reach the bare routes.
+// Without prefix stripping in normalizePath, /emby/Users/AuthenticateByName
+// 404s and login fails.
+func TestEmbyBasePathPrefix(t *testing.T) {
+	env := setupEnv(t)
+
+	body := jfapi.NewAuthenticateUserByName()
+	body.SetUsername(testUser)
+	body.SetPw(testPassword)
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{"/emby/Users/AuthenticateByName", "/jellyfin/Users/AuthenticateByName"} {
+		req, err := http.NewRequest(http.MethodPost, env.srv.URL+path, bytes.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Emby-Authorization", `MediaBrowser Client="test", Device="test", DeviceId="test", Version="1.0"`)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("POST %s status = %d, want 200", path, resp.StatusCode)
+		}
 	}
 }
 
