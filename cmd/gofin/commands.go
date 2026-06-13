@@ -78,7 +78,10 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				}
 			}()
 
-			opts := []server.Option{server.WithScanner(sc)}
+			opts := []server.Option{
+				server.WithScanner(sc),
+				server.WithQuickConnect(cfg.QuickConnectEnabled()),
+			}
 			if cfg.WebRoot != "" {
 				opts = append(opts, server.WithWebRoot(cfg.WebRoot))
 			}

@@ -50,6 +50,9 @@ unsupported.
   remote call, and caches every response (including posters) on disk so rescans
   and restarts make no repeat requests. Local NFO/artwork and locked fields
   always win — remote only fills gaps.
+- [x] **Quick Connect** — passwordless login via a short code approved from an
+  already-signed-in session (`/QuickConnect/*` + `AuthenticateWithQuickConnect`).
+  Enabled by default; disable with `quick_connect: false` in config.
 
 ### Not supported
 
@@ -67,7 +70,6 @@ real implementation behind it):
   fetched. Image art embedded inside media files (e.g. ID3 cover art) is also not
   extracted — only standalone and downloaded image files on disk are served.
 - [ ] **Collections, Playlists, Favorites, user ratings.**
-- [ ] **QuickConnect** — advertised as disabled.
 - [ ] **Live TV / DVR**, **DLNA/UPnP**, **plugins**, **SyncPlay** — stubbed or
   absent.
 - [ ] **Recommendations / similar items**, **intro & credits detection**,
@@ -145,7 +147,9 @@ curl http://localhost:8096/System/Info/Public
 ## Implemented endpoints
 
 `GET /System/Info/Public`, `GET /System/Info`,
-`POST /Users/AuthenticateByName`, `GET /Users`, `GET /Users/Me`,
+`POST /Users/AuthenticateByName`, `POST /Users/AuthenticateWithQuickConnect`,
+`POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect`,
+`POST /QuickConnect/Authorize`, `GET /Users`, `GET /Users/Me`,
 `GET /Users/{id}`, `GET /UserViews`, `GET /Items` (with `parentId`,
 `recursive`, `includeItemTypes`), `GET /Items/{id}`,
 `POST /Items/{id}/PlaybackInfo`, `GET /Videos|Audio/{id}/stream`,

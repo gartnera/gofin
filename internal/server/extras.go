@@ -23,11 +23,6 @@ func (s *Server) handlePublicUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos)
 }
 
-// handleQuickConnectEnabled reports that QuickConnect is unavailable.
-func (s *Server) handleQuickConnectEnabled(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, false)
-}
-
 // handleDisplayPreferences returns a minimal, valid display-preferences object
 // that web clients fetch on startup.
 func (s *Server) handleDisplayPreferences(w http.ResponseWriter, r *http.Request) {

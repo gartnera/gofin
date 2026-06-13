@@ -146,6 +146,20 @@ Minimal Jellyfin-compatible media server in Go.
   gofin stores (name/sort/overview/year/index numbers) plus Jellyfin's
   `LockData`/`LockedFields`. Locked items/fields are preserved by the scanner
   (see `metaLocked` in `internal/scanner`) so rescans don't clobber edits.
+  Quick Connect lives in `quickconnect.go`: an in-memory `quickConnectStore`
+  (mirroring upstream — pending handshakes are short-lived and don't survive a
+  restart, pruned after `quickConnectTTL`, and capped at
+  `quickConnectMaxPending` since Initiate is unauthenticated — without the cap it
+  would be a trivial memory-exhaustion DoS; over the cap Initiate returns 429)
+  backs the unauthenticated
+  `POST /QuickConnect/Initiate` (device gets a secret + 6-digit code) and
+  `GET /QuickConnect/Connect?secret=` (poll), the auth-gated
+  `POST /QuickConnect/Authorize?code=` (an existing session binds the code to its
+  user), and `POST /Users/AuthenticateWithQuickConnect` (device exchanges the
+  authorized secret for a token, single-use). Both that handler and password
+  login mint the token via the shared `issueAccessToken` helper in `users.go`.
+  Enabled by default; `WithQuickConnect(false)` / config `quick_connect: false`
+  turns it off (handlers 401 and `/QuickConnect/Enabled` reports false).
 
 ## Conventions
 - Response bodies reuse `github.com/sj14/jellyfin-go/api` model structs so JSON

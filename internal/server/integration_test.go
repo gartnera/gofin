@@ -65,6 +65,16 @@ func writeMedia(t *testing.T, path, content string) {
 // setupEnv builds a temp media tree (with arbitrary nesting), indexes it,
 // seeds a user, and starts an httptest server.
 func setupEnv(t *testing.T) *testEnv {
+	return setupEnvOpts(t)
+}
+
+// setupEnvWithQuickConnect is setupEnv with Quick Connect explicitly toggled.
+func setupEnvWithQuickConnect(t *testing.T, enabled bool) *testEnv {
+	return setupEnvOpts(t, server.WithQuickConnect(enabled))
+}
+
+// setupEnvOpts is the shared env builder, threading extra server options.
+func setupEnvOpts(t *testing.T, opts ...server.Option) *testEnv {
 	t.Helper()
 	root := t.TempDir()
 
@@ -102,7 +112,7 @@ func setupEnv(t *testing.T) *testEnv {
 		}
 	}
 
-	srv := httptest.NewServer(server.New(client, "test-server"))
+	srv := httptest.NewServer(server.New(client, "test-server", opts...))
 	t.Cleanup(srv.Close)
 
 	env := &testEnv{srv: srv}
