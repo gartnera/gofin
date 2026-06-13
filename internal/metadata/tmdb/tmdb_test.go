@@ -113,8 +113,12 @@ func TestSearchFlow(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Redirect the TMDb API base to the stub via a custom transport.
-	c := New("tok", WithHTTPClient(&http.Client{Transport: rewriteHost{srv.URL}}))
+	// Redirect the TMDb API base to the stub via a custom transport; disable
+	// throttling so the test doesn't pay the rate-gate interval per request.
+	c := New("tok",
+		WithHTTPClient(&http.Client{Transport: rewriteHost{srv.URL}}),
+		WithRateInterval(0),
+	)
 
 	res, err := c.MovieSearch(context.Background(), "The Matrix", nil)
 	if err != nil {

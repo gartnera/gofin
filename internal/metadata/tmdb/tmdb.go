@@ -26,12 +26,18 @@ const (
 	// fallbackImageBase is used until /configuration is fetched (or if it fails).
 	fallbackImageBase = "https://image.tmdb.org/t/p/"
 	posterSize        = "w500"
+	// defaultRateInterval gates outbound API calls. Enrichment is a background
+	// task with no latency requirement, so we throttle hard (≈4 req/s) to stay a
+	// good API citizen rather than racing toward TMDb's ceiling. Tune with
+	// WithRateInterval.
+	defaultRateInterval = 250 * time.Millisecond
 )
 
 // Client is a TMDb-backed metadata.Provider.
 type Client struct {
 	token string
 	http  *http.Client
+	rate  time.Duration
 	limit <-chan time.Time
 
 	cfgOnce   sync.Once
@@ -46,17 +52,25 @@ func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
 }
 
+// WithRateInterval sets the minimum spacing between outbound API calls. A larger
+// interval throttles more aggressively. A non-positive value disables throttling.
+func WithRateInterval(d time.Duration) Option {
+	return func(c *Client) { c.rate = d }
+}
+
 // New returns a TMDb Client authenticated with a v4 read-access token.
 func New(token string, opts ...Option) *Client {
 	c := &Client{
-		token: token,
-		http:  &http.Client{Timeout: 15 * time.Second},
-		// ~20 req/s is comfortably under TMDb's documented ceiling.
-		limit:     time.Tick(50 * time.Millisecond),
+		token:     token,
+		http:      &http.Client{Timeout: 15 * time.Second},
+		rate:      defaultRateInterval,
 		imageBase: fallbackImageBase,
 	}
 	for _, o := range opts {
 		o(c)
+	}
+	if c.rate > 0 {
+		c.limit = time.Tick(c.rate)
 	}
 	return c
 }
@@ -276,7 +290,13 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 		u += "?" + q.Encode()
 	}
 	for attempt := 0; attempt < 2; attempt++ {
-		<-c.limit
+		if c.limit != nil {
+			select {
+			case <-c.limit:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
 			return err
