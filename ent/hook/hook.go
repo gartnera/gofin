@@ -45,6 +45,18 @@ func (f MediaItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MediaItemMutation", m)
 }
 
+// The MetadataCacheFunc type is an adapter to allow the use of ordinary
+// function as MetadataCache mutator.
+type MetadataCacheFunc func(context.Context, *ent.MetadataCacheMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MetadataCacheFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MetadataCacheMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MetadataCacheMutation", m)
+}
+
 // The PlayStateFunc type is an adapter to allow the use of ordinary
 // function as PlayState mutator.
 type PlayStateFunc func(context.Context, *ent.PlayStateMutation) (ent.Value, error)

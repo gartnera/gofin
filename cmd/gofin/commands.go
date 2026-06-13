@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/db"
+	"github.com/gartnera/gofin/internal/metadata/tmdb"
 	"github.com/gartnera/gofin/internal/sample"
 	"github.com/gartnera/gofin/internal/scanner"
 	"github.com/gartnera/gofin/internal/server"
@@ -38,7 +40,15 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 
 			// Share one scanner between the HTTP refresh endpoints and the
 			// filesystem watcher so their index mutations stay serialised.
-			sc := scanner.New(client)
+			scOpts := []scanner.Option{}
+			if cfg.Metadata.Enabled {
+				scOpts = append(scOpts,
+					scanner.WithMetadataProvider(tmdb.New(cfg.Metadata.TMDbToken)),
+					scanner.WithImageCacheDir(cfg.Metadata.CacheDir),
+					scanner.WithMetadataTTL(time.Duration(cfg.Metadata.TTLDays)*24*time.Hour),
+				)
+			}
+			sc := scanner.New(client, scOpts...)
 			libs := make([]*ent.Library, 0, len(cfg.Libraries))
 			for _, libCfg := range cfg.Libraries {
 				lib, err := sc.EnsureLibrary(cmd.Context(), libCfg.Name, libCfg.Type, libCfg.Path)
@@ -52,6 +62,11 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				}
 				libs = append(libs, lib)
 			}
+
+			// Background remote-metadata enricher (no-op unless configured). It
+			// runs an initial sweep of un-enriched items and then drains the
+			// queue the scanner/watcher feed it.
+			sc.StartEnricher(cmd.Context())
 
 			w, err := watch.New(sc, libs)
 			if err != nil {

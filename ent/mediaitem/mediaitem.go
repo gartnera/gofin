@@ -65,6 +65,10 @@ const (
 	FieldLockData = "lock_data"
 	// FieldLockedFields holds the string denoting the locked_fields field in the database.
 	FieldLockedFields = "locked_fields"
+	// FieldProviderIds holds the string denoting the provider_ids field in the database.
+	FieldProviderIds = "provider_ids"
+	// FieldMetadataSyncedAt holds the string denoting the metadata_synced_at field in the database.
+	FieldMetadataSyncedAt = "metadata_synced_at"
 	// EdgeLibrary holds the string denoting the library edge name in mutations.
 	EdgeLibrary = "library"
 	// EdgeParent holds the string denoting the parent edge name in mutations.
@@ -127,6 +131,8 @@ var Columns = []string{
 	FieldMediaStreams,
 	FieldLockData,
 	FieldLockedFields,
+	FieldProviderIds,
+	FieldMetadataSyncedAt,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "media_items"
@@ -316,6 +322,11 @@ func ByImagePath(opts ...sql.OrderTermOption) OrderOption {
 // ByLockData orders the results by the lock_data field.
 func ByLockData(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLockData, opts...).ToFunc()
+}
+
+// ByMetadataSyncedAt orders the results by the metadata_synced_at field.
+func ByMetadataSyncedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMetadataSyncedAt, opts...).ToFunc()
 }
 
 // ByLibraryField orders the results by library field.

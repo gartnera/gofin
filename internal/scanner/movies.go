@@ -50,7 +50,11 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 		if err := upd.Exec(ctx); err != nil {
 			return err
 		}
-		return s.applyNFO(ctx, existing, nf)
+		if err := s.applyNFO(ctx, existing, nf); err != nil {
+			return err
+		}
+		s.maybeEnrich(existing)
+		return nil
 	}
 
 	create := s.client.MediaItem.Create().
@@ -72,5 +76,9 @@ func (s *Scanner) indexMovie(ctx context.Context, lib *ent.Library, path string,
 	if err != nil {
 		return err
 	}
-	return s.applyNFO(ctx, item, nf)
+	if err := s.applyNFO(ctx, item, nf); err != nil {
+		return err
+	}
+	s.maybeEnrich(item)
+	return nil
 }

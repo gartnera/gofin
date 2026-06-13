@@ -50,6 +50,10 @@ func (s *Scanner) indexEpisode(ctx context.Context, lib *ent.Library, path strin
 			series.ImagePath = img
 		}
 	}
+	// Queue the show itself for background remote enrichment (overview, genres,
+	// poster). Episodes inherit the show's poster via the mapper, so enriching
+	// the Series is what populates the library grid.
+	s.maybeEnrich(series)
 	seasonName := fmt.Sprintf("Season %d", parsed.Season)
 	season, err := s.findOrCreateFolder(ctx, lib, mediaitem.KindSeason, seasonName, &series.ID)
 	if err != nil {

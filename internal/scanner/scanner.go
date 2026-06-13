@@ -9,10 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -45,6 +47,20 @@ type Scanner struct {
 	// It is only set for the duration of a ScanLibrary call (under mu); the
 	// watcher's single-file Index path leaves it nil and queries directly.
 	cache *scanCache
+
+	// Remote metadata enrichment. meta defaults to metadata.Noop so the
+	// enrichment path is inert unless a real provider is configured;
+	// metaEnabled gates whether the background enricher runs and items are
+	// enqueued at all (so default behavior makes no network calls).
+	meta        metadata.Provider
+	metaEnabled bool
+	imageCache  string        // dir for downloaded posters; "" disables image caching
+	metaTTL     time.Duration // freshness window for cached remote responses
+	enrichQ     chan uuid.UUID
+	// enqueued dedups in-flight enqueues so a burst (e.g. every episode of one
+	// series enqueuing its Series) sends each id at most once until processed.
+	enqMu    sync.Mutex
+	enqueued map[uuid.UUID]struct{}
 }
 
 // folderKey identifies a folder-like item within a library by its kind, name,
@@ -144,9 +160,37 @@ func WithProber(p probe.Prober) Option {
 	return func(s *Scanner) { s.prober = p }
 }
 
+// WithMetadataProvider enables background remote-metadata enrichment using p.
+// Passing a real provider (anything other than metadata.Noop) turns on the
+// enricher; without this option the scanner makes no network calls.
+func WithMetadataProvider(p metadata.Provider) Option {
+	return func(s *Scanner) {
+		s.meta = p
+		_, noop := p.(metadata.Noop)
+		s.metaEnabled = p != nil && !noop
+	}
+}
+
+// WithImageCacheDir sets the directory into which remote posters are downloaded
+// and cached. When empty, remote images are skipped (text metadata still fills).
+func WithImageCacheDir(dir string) Option {
+	return func(s *Scanner) { s.imageCache = dir }
+}
+
+// WithMetadataTTL sets how long a cached remote response is considered fresh.
+func WithMetadataTTL(d time.Duration) Option {
+	return func(s *Scanner) { s.metaTTL = d }
+}
+
 // New returns a Scanner backed by the given ent client.
 func New(client *ent.Client, opts ...Option) *Scanner {
-	s := &Scanner{client: client}
+	s := &Scanner{
+		client:   client,
+		meta:     metadata.Noop{},
+		metaTTL:  defaultMetaTTL,
+		enrichQ:  make(chan uuid.UUID, 1024),
+		enqueued: map[uuid.UUID]struct{}{},
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -631,7 +675,14 @@ func (s *Scanner) RefreshItem(ctx context.Context, item *ent.MediaItem) error {
 	if err != nil {
 		return err
 	}
-	if err := item.Update().SetMtime(0).Exec(ctx); err != nil {
+	upd := item.Update().SetMtime(0)
+	// Clearing the sync marker makes the re-index re-enqueue the item for remote
+	// enrichment, so a manual refresh re-pulls metadata (and any newly-available
+	// match) in addition to re-probing the file.
+	if s.metaEnabled {
+		upd = upd.ClearMetadataSyncedAt()
+	}
+	if err := upd.Exec(ctx); err != nil {
 		return err
 	}
 	return s.Index(ctx, lib, item.Path)

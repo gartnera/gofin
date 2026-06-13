@@ -19,6 +19,7 @@ import (
 	"github.com/gartnera/gofin/ent/accesstoken"
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
+	"github.com/gartnera/gofin/ent/metadatacache"
 	"github.com/gartnera/gofin/ent/playstate"
 	"github.com/gartnera/gofin/ent/user"
 )
@@ -34,6 +35,8 @@ type Client struct {
 	Library *LibraryClient
 	// MediaItem is the client for interacting with the MediaItem builders.
 	MediaItem *MediaItemClient
+	// MetadataCache is the client for interacting with the MetadataCache builders.
+	MetadataCache *MetadataCacheClient
 	// PlayState is the client for interacting with the PlayState builders.
 	PlayState *PlayStateClient
 	// User is the client for interacting with the User builders.
@@ -52,6 +55,7 @@ func (c *Client) init() {
 	c.AccessToken = NewAccessTokenClient(c.config)
 	c.Library = NewLibraryClient(c.config)
 	c.MediaItem = NewMediaItemClient(c.config)
+	c.MetadataCache = NewMetadataCacheClient(c.config)
 	c.PlayState = NewPlayStateClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -144,13 +148,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		AccessToken: NewAccessTokenClient(cfg),
-		Library:     NewLibraryClient(cfg),
-		MediaItem:   NewMediaItemClient(cfg),
-		PlayState:   NewPlayStateClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		AccessToken:   NewAccessTokenClient(cfg),
+		Library:       NewLibraryClient(cfg),
+		MediaItem:     NewMediaItemClient(cfg),
+		MetadataCache: NewMetadataCacheClient(cfg),
+		PlayState:     NewPlayStateClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
@@ -168,13 +173,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		AccessToken: NewAccessTokenClient(cfg),
-		Library:     NewLibraryClient(cfg),
-		MediaItem:   NewMediaItemClient(cfg),
-		PlayState:   NewPlayStateClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		AccessToken:   NewAccessTokenClient(cfg),
+		Library:       NewLibraryClient(cfg),
+		MediaItem:     NewMediaItemClient(cfg),
+		MetadataCache: NewMetadataCacheClient(cfg),
+		PlayState:     NewPlayStateClient(cfg),
+		User:          NewUserClient(cfg),
 	}, nil
 }
 
@@ -203,21 +209,21 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.AccessToken.Use(hooks...)
-	c.Library.Use(hooks...)
-	c.MediaItem.Use(hooks...)
-	c.PlayState.Use(hooks...)
-	c.User.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.AccessToken, c.Library, c.MediaItem, c.MetadataCache, c.PlayState, c.User,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.AccessToken.Intercept(interceptors...)
-	c.Library.Intercept(interceptors...)
-	c.MediaItem.Intercept(interceptors...)
-	c.PlayState.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.AccessToken, c.Library, c.MediaItem, c.MetadataCache, c.PlayState, c.User,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -229,6 +235,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Library.mutate(ctx, m)
 	case *MediaItemMutation:
 		return c.MediaItem.mutate(ctx, m)
+	case *MetadataCacheMutation:
+		return c.MetadataCache.mutate(ctx, m)
 	case *PlayStateMutation:
 		return c.PlayState.mutate(ctx, m)
 	case *UserMutation:
@@ -733,6 +741,139 @@ func (c *MediaItemClient) mutate(ctx context.Context, m *MediaItemMutation) (Val
 	}
 }
 
+// MetadataCacheClient is a client for the MetadataCache schema.
+type MetadataCacheClient struct {
+	config
+}
+
+// NewMetadataCacheClient returns a client for the MetadataCache from the given config.
+func NewMetadataCacheClient(c config) *MetadataCacheClient {
+	return &MetadataCacheClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `metadatacache.Hooks(f(g(h())))`.
+func (c *MetadataCacheClient) Use(hooks ...Hook) {
+	c.hooks.MetadataCache = append(c.hooks.MetadataCache, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `metadatacache.Intercept(f(g(h())))`.
+func (c *MetadataCacheClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MetadataCache = append(c.inters.MetadataCache, interceptors...)
+}
+
+// Create returns a builder for creating a MetadataCache entity.
+func (c *MetadataCacheClient) Create() *MetadataCacheCreate {
+	mutation := newMetadataCacheMutation(c.config, OpCreate)
+	return &MetadataCacheCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MetadataCache entities.
+func (c *MetadataCacheClient) CreateBulk(builders ...*MetadataCacheCreate) *MetadataCacheCreateBulk {
+	return &MetadataCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MetadataCacheClient) MapCreateBulk(slice any, setFunc func(*MetadataCacheCreate, int)) *MetadataCacheCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MetadataCacheCreateBulk{err: fmt.Errorf("calling to MetadataCacheClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MetadataCacheCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MetadataCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MetadataCache.
+func (c *MetadataCacheClient) Update() *MetadataCacheUpdate {
+	mutation := newMetadataCacheMutation(c.config, OpUpdate)
+	return &MetadataCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MetadataCacheClient) UpdateOne(_m *MetadataCache) *MetadataCacheUpdateOne {
+	mutation := newMetadataCacheMutation(c.config, OpUpdateOne, withMetadataCache(_m))
+	return &MetadataCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MetadataCacheClient) UpdateOneID(id uuid.UUID) *MetadataCacheUpdateOne {
+	mutation := newMetadataCacheMutation(c.config, OpUpdateOne, withMetadataCacheID(id))
+	return &MetadataCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MetadataCache.
+func (c *MetadataCacheClient) Delete() *MetadataCacheDelete {
+	mutation := newMetadataCacheMutation(c.config, OpDelete)
+	return &MetadataCacheDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MetadataCacheClient) DeleteOne(_m *MetadataCache) *MetadataCacheDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MetadataCacheClient) DeleteOneID(id uuid.UUID) *MetadataCacheDeleteOne {
+	builder := c.Delete().Where(metadatacache.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MetadataCacheDeleteOne{builder}
+}
+
+// Query returns a query builder for MetadataCache.
+func (c *MetadataCacheClient) Query() *MetadataCacheQuery {
+	return &MetadataCacheQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMetadataCache},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MetadataCache entity by its id.
+func (c *MetadataCacheClient) Get(ctx context.Context, id uuid.UUID) (*MetadataCache, error) {
+	return c.Query().Where(metadatacache.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MetadataCacheClient) GetX(ctx context.Context, id uuid.UUID) *MetadataCache {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MetadataCacheClient) Hooks() []Hook {
+	return c.hooks.MetadataCache
+}
+
+// Interceptors returns the client interceptors.
+func (c *MetadataCacheClient) Interceptors() []Interceptor {
+	return c.inters.MetadataCache
+}
+
+func (c *MetadataCacheClient) mutate(ctx context.Context, m *MetadataCacheMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MetadataCacheCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MetadataCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MetadataCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MetadataCacheDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MetadataCache mutation op: %q", m.Op())
+	}
+}
+
 // PlayStateClient is a client for the PlayState schema.
 type PlayStateClient struct {
 	config
@@ -1066,9 +1207,10 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AccessToken, Library, MediaItem, PlayState, User []ent.Hook
+		AccessToken, Library, MediaItem, MetadataCache, PlayState, User []ent.Hook
 	}
 	inters struct {
-		AccessToken, Library, MediaItem, PlayState, User []ent.Interceptor
+		AccessToken, Library, MediaItem, MetadataCache, PlayState,
+		User []ent.Interceptor
 	}
 )

@@ -151,6 +151,11 @@ func LockData(v bool) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldLockData, v))
 }
 
+// MetadataSyncedAt applies equality check predicate on the "metadata_synced_at" field. It's identical to MetadataSyncedAtEQ.
+func MetadataSyncedAt(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldMetadataSyncedAt, v))
+}
+
 // KindEQ applies the EQ predicate on the "kind" field.
 func KindEQ(v Kind) predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldEQ(FieldKind, v))
@@ -1234,6 +1239,66 @@ func LockedFieldsIsNil() predicate.MediaItem {
 // LockedFieldsNotNil applies the NotNil predicate on the "locked_fields" field.
 func LockedFieldsNotNil() predicate.MediaItem {
 	return predicate.MediaItem(sql.FieldNotNull(FieldLockedFields))
+}
+
+// ProviderIdsIsNil applies the IsNil predicate on the "provider_ids" field.
+func ProviderIdsIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldProviderIds))
+}
+
+// ProviderIdsNotNil applies the NotNil predicate on the "provider_ids" field.
+func ProviderIdsNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldProviderIds))
+}
+
+// MetadataSyncedAtEQ applies the EQ predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtEQ(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldEQ(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtNEQ applies the NEQ predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtNEQ(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNEQ(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtIn applies the In predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtIn(vs ...time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIn(FieldMetadataSyncedAt, vs...))
+}
+
+// MetadataSyncedAtNotIn applies the NotIn predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtNotIn(vs ...time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotIn(FieldMetadataSyncedAt, vs...))
+}
+
+// MetadataSyncedAtGT applies the GT predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtGT(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGT(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtGTE applies the GTE predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtGTE(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldGTE(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtLT applies the LT predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtLT(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLT(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtLTE applies the LTE predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtLTE(v time.Time) predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldLTE(FieldMetadataSyncedAt, v))
+}
+
+// MetadataSyncedAtIsNil applies the IsNil predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtIsNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldIsNull(FieldMetadataSyncedAt))
+}
+
+// MetadataSyncedAtNotNil applies the NotNil predicate on the "metadata_synced_at" field.
+func MetadataSyncedAtNotNil() predicate.MediaItem {
+	return predicate.MediaItem(sql.FieldNotNull(FieldMetadataSyncedAt))
 }
 
 // HasLibrary applies the HasEdge predicate on the "library" edge.

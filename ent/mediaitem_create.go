@@ -13,6 +13,7 @@ import (
 	"github.com/gartnera/gofin/ent/library"
 	"github.com/gartnera/gofin/ent/mediaitem"
 	"github.com/gartnera/gofin/ent/playstate"
+	"github.com/gartnera/gofin/internal/metadata"
 	"github.com/gartnera/gofin/internal/nfo"
 	"github.com/gartnera/gofin/internal/probe"
 	"github.com/google/uuid"
@@ -316,6 +317,26 @@ func (_c *MediaItemCreate) SetNillableLockData(v *bool) *MediaItemCreate {
 // SetLockedFields sets the "locked_fields" field.
 func (_c *MediaItemCreate) SetLockedFields(v []string) *MediaItemCreate {
 	_c.mutation.SetLockedFields(v)
+	return _c
+}
+
+// SetProviderIds sets the "provider_ids" field.
+func (_c *MediaItemCreate) SetProviderIds(v metadata.ProviderIDs) *MediaItemCreate {
+	_c.mutation.SetProviderIds(v)
+	return _c
+}
+
+// SetMetadataSyncedAt sets the "metadata_synced_at" field.
+func (_c *MediaItemCreate) SetMetadataSyncedAt(v time.Time) *MediaItemCreate {
+	_c.mutation.SetMetadataSyncedAt(v)
+	return _c
+}
+
+// SetNillableMetadataSyncedAt sets the "metadata_synced_at" field if the given value is not nil.
+func (_c *MediaItemCreate) SetNillableMetadataSyncedAt(v *time.Time) *MediaItemCreate {
+	if v != nil {
+		_c.SetMetadataSyncedAt(*v)
+	}
 	return _c
 }
 
@@ -678,6 +699,14 @@ func (_c *MediaItemCreate) createSpec() (*MediaItem, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LockedFields(); ok {
 		_spec.SetField(mediaitem.FieldLockedFields, field.TypeJSON, value)
 		_node.LockedFields = value
+	}
+	if value, ok := _c.mutation.ProviderIds(); ok {
+		_spec.SetField(mediaitem.FieldProviderIds, field.TypeJSON, value)
+		_node.ProviderIds = value
+	}
+	if value, ok := _c.mutation.MetadataSyncedAt(); ok {
+		_spec.SetField(mediaitem.FieldMetadataSyncedAt, field.TypeTime, value)
+		_node.MetadataSyncedAt = &value
 	}
 	if nodes := _c.mutation.LibraryIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
