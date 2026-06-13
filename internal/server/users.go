@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/ent/user"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/jellyfin"
@@ -29,10 +30,22 @@ func (s *Server) handleAuthenticateByName(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	token, err := auth.GenerateToken()
+	result, err := s.issueAccessToken(r, u)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// issueAccessToken mints a new access token for u, persisting it with the client
+// identity from the request's MediaBrowser authorization header, and returns the
+// AuthenticationResult shared by password and Quick Connect logins.
+func (s *Server) issueAccessToken(r *http.Request, u *ent.User) (*api.AuthenticationResult, error) {
+	token, err := auth.GenerateToken()
+	if err != nil {
+		return nil, err
 	}
 
 	pairs := ParseAuthorization(r.Header.Get("Authorization"))
@@ -47,8 +60,7 @@ func (s *Server) handleAuthenticateByName(w http.ResponseWriter, r *http.Request
 		SetVersion(pairs["Version"]).
 		SetUser(u).
 		Save(r.Context()); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	userDto := jellyfin.MapUser(u, s.serverID)
@@ -71,7 +83,7 @@ func (s *Server) handleAuthenticateByName(w http.ResponseWriter, r *http.Request
 	}
 	result.SetSessionInfo(*session)
 
-	writeJSON(w, http.StatusOK, result)
+	return result, nil
 }
 
 func (s *Server) handleCurrentUser(w http.ResponseWriter, r *http.Request) {

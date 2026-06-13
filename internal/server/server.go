@@ -28,6 +28,9 @@ type Server struct {
 	scanner    *scanner.Scanner
 	mux        *http.ServeMux
 	webRoot    string
+
+	quickConnectEnabled bool
+	quickConnect        *quickConnectStore
 }
 
 // Option configures a Server.
@@ -47,13 +50,22 @@ func WithWebRoot(dir string) Option {
 	return func(s *Server) { s.webRoot = dir }
 }
 
+// WithQuickConnect toggles Quick Connect availability. When disabled the
+// /QuickConnect endpoints reject requests and /QuickConnect/Enabled reports
+// false. Quick Connect is enabled by default.
+func WithQuickConnect(enabled bool) Option {
+	return func(s *Server) { s.quickConnectEnabled = enabled }
+}
+
 // New constructs a Server and registers its routes.
 func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	s := &Server{
-		client:     client,
-		serverName: serverName,
-		serverID:   deriveServerID(serverName),
-		mux:        http.NewServeMux(),
+		client:              client,
+		serverName:          serverName,
+		serverID:            deriveServerID(serverName),
+		mux:                 http.NewServeMux(),
+		quickConnectEnabled: true,
+		quickConnect:        newQuickConnectStore(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -156,6 +168,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /branding/configuration", s.handleBrandingConfiguration)
 	s.mux.HandleFunc("GET /users/public", s.handlePublicUsers)
 	s.mux.HandleFunc("GET /quickconnect/enabled", s.handleQuickConnectEnabled)
+	s.mux.HandleFunc("POST /quickconnect/initiate", s.handleQuickConnectInitiate)
+	s.mux.HandleFunc("GET /quickconnect/connect", s.handleQuickConnectState)
+	s.mux.HandleFunc("POST /users/authenticatewithquickconnect", s.handleAuthenticateWithQuickConnect)
+
+	// Quick Connect approval (requires an already-authenticated session).
+	s.mux.HandleFunc("POST /quickconnect/authorize", s.requireAuth(s.handleQuickConnectAuthorize))
 
 	// System / user info.
 	s.mux.HandleFunc("GET /system/info", s.requireAuth(s.handleSystemInfo))

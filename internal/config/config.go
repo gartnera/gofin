@@ -36,6 +36,15 @@ type Config struct {
 	WebRoot    string    `yaml:"web_root"`
 	Libraries  []Library `yaml:"libraries"`
 	Metadata   Metadata  `yaml:"metadata"`
+	// QuickConnect toggles Quick Connect login. Enabled by default; set to false
+	// to advertise it as disabled and reject the handshake endpoints.
+	QuickConnect *bool `yaml:"quick_connect"`
+}
+
+// QuickConnectEnabled reports whether Quick Connect is enabled, defaulting to
+// true when the config omits the field.
+func (c *Config) QuickConnectEnabled() bool {
+	return c.QuickConnect == nil || *c.QuickConnect
 }
 
 // Default values applied when a field is omitted from the YAML file.
