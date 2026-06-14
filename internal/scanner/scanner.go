@@ -688,22 +688,35 @@ func (s *Scanner) RefreshItem(ctx context.Context, item *ent.MediaItem) error {
 	return s.Index(ctx, lib, item.Path)
 }
 
-// RemovePath deletes the item backed by the given file path, if any.
-func (s *Scanner) RemovePath(ctx context.Context, path string) error {
+// RemovePath deletes the item backed by the given file path, if any, and
+// reports how many rows were removed (0 or 1) so a caller can tell a real
+// single-file removal from a no-op (e.g. a directory event whose path matches no
+// playable row).
+func (s *Scanner) RemovePath(ctx context.Context, path string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.client.MediaItem.Delete().Where(mediaitem.PathEQ(path)).Exec(ctx)
-	return err
+	return s.client.MediaItem.Delete().Where(mediaitem.PathEQ(path)).Exec(ctx)
 }
 
 // RemovePrefix deletes every playable item whose file lives under dir (used when
-// a directory is removed from disk).
-func (s *Scanner) RemovePrefix(ctx context.Context, dir string) error {
+// a directory is removed from disk) and reports how many rows were removed, so a
+// caller can tell a directory subtree deletion (n > 0) from a single-file event.
+func (s *Scanner) RemovePrefix(ctx context.Context, dir string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	prefix := strings.TrimSuffix(dir, string(filepath.Separator)) + string(filepath.Separator)
-	_, err := s.client.MediaItem.Delete().Where(mediaitem.PathHasPrefix(prefix)).Exec(ctx)
-	return err
+	return s.client.MediaItem.Delete().Where(mediaitem.PathHasPrefix(prefix)).Exec(ctx)
+}
+
+// PruneEmptyFolders drops folder items (Series/Season/Artist/Album) left without
+// children, cascading parent-ward. It is the cheap tail of a full prune (no
+// per-file stat pass), used by the watcher after a directory removal so an
+// emptied show/artist folder disappears immediately instead of lingering until
+// the next full rescan.
+func (s *Scanner) PruneEmptyFolders(ctx context.Context, lib *ent.Library) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pruneEmptyFolders(ctx, lib)
 }
 
 // prune removes items whose backing files have disappeared, then drops any
@@ -722,8 +735,14 @@ func (s *Scanner) prune(ctx context.Context, lib *ent.Library) error {
 			}
 		}
 	}
-	// Repeatedly drop empty folders so that, e.g., an emptied season is removed
-	// before its now-childless series.
+	// Drop any folder rows left childless once their files are gone.
+	return s.pruneEmptyFolders(ctx, lib)
+}
+
+// pruneEmptyFolders repeatedly drops folder items with no children so that,
+// e.g., an emptied season is removed before its now-childless series. Caller
+// must hold s.mu.
+func (s *Scanner) pruneEmptyFolders(ctx context.Context, lib *ent.Library) error {
 	for {
 		folders, err := s.client.MediaItem.Query().
 			Where(mediaitem.HasLibraryWith(library.ID(lib.ID)), mediaitem.PathEQ("")).
