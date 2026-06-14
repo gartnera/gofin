@@ -62,7 +62,7 @@ func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	s := &Server{
 		client:              client,
 		serverName:          serverName,
-		serverID:            deriveServerID(serverName),
+		serverID:            DeriveServerID(serverName),
 		mux:                 http.NewServeMux(),
 		quickConnectEnabled: true,
 		quickConnect:        newQuickConnectStore(),
@@ -77,8 +77,10 @@ func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	return s
 }
 
-// deriveServerID produces a stable 32-char hex id from the server name.
-func deriveServerID(name string) string {
+// DeriveServerID produces a stable 32-char hex id from the server name. It is
+// exported so the UDP discovery responder advertises the same id this server
+// reports in /System/Info.
+func DeriveServerID(name string) string {
 	sum := sha256.Sum256([]byte("gofin:" + name))
 	return hex.EncodeToString(sum[:16])
 }

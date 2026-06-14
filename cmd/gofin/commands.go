@@ -2,13 +2,16 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gartnera/gofin/ent"
 	"github.com/gartnera/gofin/internal/auth"
 	"github.com/gartnera/gofin/internal/db"
+	"github.com/gartnera/gofin/internal/discovery"
 	"github.com/gartnera/gofin/internal/metadata/tmdb"
 	"github.com/gartnera/gofin/internal/sample"
 	"github.com/gartnera/gofin/internal/scanner"
@@ -16,6 +19,20 @@ import (
 	"github.com/gartnera/gofin/internal/watch"
 	"github.com/spf13/cobra"
 )
+
+// httpPort extracts the TCP port from a listen address like ":8096" or
+// "0.0.0.0:8096" so the discovery responder can advertise it.
+func httpPort(listen string) (int, error) {
+	_, portStr, err := net.SplitHostPort(listen)
+	if err != nil {
+		return 0, fmt.Errorf("parse listen address %q: %w", listen, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0, fmt.Errorf("parse listen port %q: %w", portStr, err)
+	}
+	return port, nil
+}
 
 func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 	return &cobra.Command{
@@ -80,6 +97,22 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 					fmt.Printf("watcher stopped: %v\n", err)
 				}
 			}()
+
+			// UDP client auto-discovery (port 7359), so stock clients find gofin
+			// on the LAN without typing its address. Enabled by default; a bind
+			// failure is logged but never fatal to the HTTP server.
+			if cfg.DiscoveryEnabled() {
+				if port, err := httpPort(cfg.Listen); err != nil {
+					fmt.Printf("discovery disabled: %v\n", err)
+				} else {
+					disco := discovery.New(server.DeriveServerID(cfg.ServerName), cfg.ServerName, port)
+					go func() {
+						if err := disco.ListenAndServe(cmd.Context()); err != nil && cmd.Context().Err() == nil {
+							fmt.Printf("discovery stopped: %v\n", err)
+						}
+					}()
+				}
+			}
 
 			opts := []server.Option{
 				server.WithScanner(sc),

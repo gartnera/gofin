@@ -167,6 +167,18 @@ Minimal Jellyfin-compatible media server in Go.
   uses `Noop` and makes no network calls. `RefreshItem` clears the marker so a
   manual refresh re-pulls. Per-episode/season and music providers are out of
   scope for now.
+- `internal/discovery` — UDP client auto-discovery responder (port 7359, a port
+  of Jellyfin's `AutoDiscoveryHost`). Listens on `0.0.0.0:7359`, and to any
+  datagram that contains (case-insensitively) `who is JellyfinServer?` or `who is
+  EmbyServer?` replies, unicast, with `{"Address","Id","Name","EndpointAddress"}`
+  JSON — PascalCase keys with an explicit `"EndpointAddress":null` to match
+  .NET's default serialization. `Address` is `http://<ip>:<httpPort>` where
+  `<ip>` is the local address best reachable from the requester (found by
+  connecting — not sending — a UDP socket to it, mirroring upstream's
+  `GetBindAddress(remoteAddr)`); `Id` is `server.DeriveServerID(name)` so it
+  matches `/System/Info`. Started by `serve` in a goroutine (a bind failure is
+  logged, never fatal), gated by config `discovery` (default true). `Serve` takes
+  a `*net.UDPConn` so tests bind an ephemeral port instead of fixed 7359.
 - `internal/jellyfin` — maps ent rows to `sj14/jellyfin-go` `api.*` structs;
   IDs are emitted as 32-char dashless hex; builds `UserData` and `MediaStreams`.
 - `internal/server` — `http.ServeMux` handlers + MediaBrowser auth middleware;
