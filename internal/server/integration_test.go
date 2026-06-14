@@ -97,7 +97,11 @@ func setupEnvOpts(t *testing.T, opts ...server.Option) *testEnv {
 
 	seedUser(t, ctx, client)
 
-	sc := scanner.New(client, scanner.WithProber(fakeProber{}))
+	// Share a hub and the hooked scanner with the server so the socket tests
+	// observe live LibraryChanged events on refresh (mirrors the serve wiring).
+	hub := server.NewSocketHub()
+	sc := scanner.New(client, scanner.WithProber(fakeProber{}), scanner.WithChangeHook(hub.NotifyLibraryChanged))
+	opts = append(opts, server.WithHub(hub), server.WithScanner(sc))
 	for _, l := range []struct{ name, typ, sub string }{
 		{"Movies", "movies", "movies"},
 		{"TV Shows", "tvshows", "tv"},

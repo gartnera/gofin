@@ -73,11 +73,13 @@ try {
   await browser.close();
 }
 
-const { apiFailures, pageErrors } = collector.report();
-// The crawl's pass/fail signal is gofin API health. Web-client page errors are
-// printed above for visibility but don't gate the run: the broad tab-switching
-// this scenario does can trip client-side view-transition races that reproduce
-// against any backend. The focused `playback` scenario treats page errors as
-// fatal, where they're deterministic and meaningful.
+const { apiFailures, pageErrors, socketFailures } = collector.report();
+// The crawl's pass/fail signal is gofin API health and the live-events socket.
+// Web-client page errors are printed above for visibility but don't gate the
+// run: the broad tab-switching this scenario does can trip client-side
+// view-transition races that reproduce against any backend. The focused
+// `playback` scenario treats page errors as fatal, where they're deterministic
+// and meaningful.
 if (pageErrors > 0) console.log(`\nnote: ${pageErrors} web-client page error(s) above (not gating; see comment)`);
-process.exit(apiFailures > 0 ? 1 : 0);
+if (socketFailures > 0) console.log(`\nFAIL: ${socketFailures} WebSocket problem(s) above`);
+process.exit(apiFailures > 0 || socketFailures > 0 ? 1 : 0);
