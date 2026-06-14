@@ -77,7 +77,8 @@ real implementation behind it):
 - [ ] **Live TV / DVR**, **DLNA/UPnP**, **plugins**, **SyncPlay** — stubbed or
   absent.
 - [ ] **Recommendations / similar items**, **intro & credits detection**,
-  genre/studio/artist *browse* facets — stubbed (return empty).
+  **trailers & special features**, genre/studio/artist *browse* facets — stubbed
+  (return empty).
 - [ ] **Multiple editions/versions** of one movie are not grouped (each file is a
   separate item).
 
