@@ -56,12 +56,21 @@ type Config struct {
 	// QuickConnect toggles Quick Connect login. Enabled by default; set to false
 	// to advertise it as disabled and reject the handshake endpoints.
 	QuickConnect *bool `yaml:"quick_connect"`
+	// Discovery toggles the UDP client auto-discovery responder (port 7359).
+	// Enabled by default; set to false to stop answering discovery broadcasts.
+	Discovery *bool `yaml:"discovery"`
 }
 
 // QuickConnectEnabled reports whether Quick Connect is enabled, defaulting to
 // true when the config omits the field.
 func (c *Config) QuickConnectEnabled() bool {
 	return c.QuickConnect == nil || *c.QuickConnect
+}
+
+// DiscoveryEnabled reports whether the UDP auto-discovery responder is enabled,
+// defaulting to true when the config omits the field.
+func (c *Config) DiscoveryEnabled() bool {
+	return c.Discovery == nil || *c.Discovery
 }
 
 // WatchWindowDays returns the leaf-directory recency window in days, defaulting

@@ -4,6 +4,7 @@ listen: ":8096"        # Jellyfin's default port
 database: gofin.db      # sqlite database file
 # web_root: ./web      # serve the official jellyfin-web bundle at /web/ when set
 # quick_connect: true  # passwordless code login; enabled by default (set false to disable)
+# discovery: true      # answer UDP 7359 client auto-discovery broadcasts; enabled by default
 
 libraries:
   - name: Movies

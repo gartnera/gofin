@@ -57,6 +57,10 @@ unsupported.
 - [x] **Quick Connect** — passwordless login via a short code approved from an
   already-signed-in session (`/QuickConnect/*` + `AuthenticateWithQuickConnect`).
   Enabled by default; disable with `quick_connect: false` in config.
+- [x] **UDP client auto-discovery** — answers the Jellyfin/Emby discovery
+  broadcast on UDP **7359** so stock clients find gofin on the LAN without
+  typing its address. Enabled by default; disable with `discovery: false` in
+  config.
 
 ### Not supported
 
