@@ -232,6 +232,11 @@ func (s *Server) routes() {
 	// them, so return an empty result rather than 404 — the client just shows
 	// no skip buttons.
 	s.mux.HandleFunc("GET /mediasegments/{itemId}", s.requireAuth(s.handleEmptyQuery))
+	// Trailers and special features: gofin indexes neither. These are bare-array
+	// endpoints, so return [] rather than 404 — the detail page just shows no
+	// extras.
+	s.mux.HandleFunc("GET /items/{itemId}/localtrailers", s.requireAuth(s.handleEmptyArray))
+	s.mux.HandleFunc("GET /items/{itemId}/specialfeatures", s.requireAuth(s.handleEmptyArray))
 
 	// Playback.
 	s.mux.HandleFunc("POST /items/{itemId}/playbackinfo", s.requireAuth(s.handlePlaybackInfo))
