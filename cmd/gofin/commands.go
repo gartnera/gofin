@@ -68,7 +68,10 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 			// queue the scanner/watcher feed it.
 			sc.StartEnricher(cmd.Context())
 
-			w, err := watch.New(sc, libs)
+			w, err := watch.New(sc, libs,
+				watch.WithWatchWindow(time.Duration(cfg.WatchWindowDays())*24*time.Hour),
+				watch.WithRescanInterval(time.Duration(cfg.WatchRescanHours())*time.Hour),
+			)
 			if err != nil {
 				return fmt.Errorf("start watcher: %w", err)
 			}

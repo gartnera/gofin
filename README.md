@@ -42,7 +42,11 @@ unsupported.
 - [x] Metadata editing with per-field / whole-item **locks** that survive
   rescans (`POST /Items/{id}`).
 - [x] Live index updates via a filesystem watcher (`fsnotify`); manual rescan via
-  `POST /Library/Refresh`.
+  `POST /Library/Refresh`. To stay within Linux's `fs.inotify.max_user_watches`
+  on large libraries, the watcher always watches container directories (so new
+  folders are detected) but watches individual leaf folders only when modified
+  within a recency window (default 7 days, `watch.window_days`); a periodic full
+  rescan (default daily, `watch.rescan_hours`) heals anything the window skipped.
 - [x] **Remote metadata** for movies and TV series via **TMDb** (overview,
   genres, studios, cast/crew, ratings, premiere date and **poster**) — opt-in
   (set `metadata.enabled` + a `tmdb_token` in config). Fetching runs in a

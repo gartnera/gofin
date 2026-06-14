@@ -76,6 +76,38 @@ Minimal Jellyfin-compatible media server in Go.
   from a few base files.
 - `internal/watch` — `fsnotify` watcher that keeps the index live: new/modified
   files are indexed (debounced) and removals are dropped. Started by `serve`.
+  To bound inotify watch count on large libraries (Linux
+  `fs.inotify.max_user_watches`), `addTree` does not watch every directory: it
+  always watches the library root and every *container* directory (one with ≥1
+  subdirectory — detected by watching `filepath.Dir(p)` for each subdir `p` the
+  walk descends into) so new child directories are always caught, but watches a
+  *leaf* directory only when its mtime is within the recency window
+  (`WithWatchWindow`, config `watch.window_days`, default 7d; 0 = watch all). The
+  gap this opens — an in-place change inside a stale, unwatched leaf — is healed
+  by a periodic full rescan (`WithRescanInterval`, config `watch.rescan_hours`,
+  default 24h; 0 = off). The rescan runs `ScanLibrary` in a background goroutine
+  (`rescanScan`, guarded by a `rescanning` flag against overlap) so a multi-second
+  scan never blocks the `Run` select loop — otherwise the undrained fsnotify
+  channel would overflow the kernel inotify queue and drop live events; on
+  completion it signals back via `rescanDone` and `Run` re-walks (`addTree`) to
+  pick up newly-recent dirs. The `watched` set is unlocked, so all writes stay on
+  one goroutine: `New` (before `Run`) and the `Run` goroutine itself
+  (event handling *and* the post-rescan `addTree`) — `rescanScan` deliberately
+  touches only the scanner, never `watched`. `handleRemove` purges `watched`
+  (`unwatch`, which also calls `fsw.Remove` — a no-op on a real delete but the
+  thing that actually reclaims the kernel watch on a *rename*, where the inode
+  persists) so a recreated path is watched afresh rather than skipped as
+  already-added. Deleting a whole movie/show/artist folder is caught even when
+  the folder itself was an unwatched stale leaf, because the entry's removal
+  fires on its still-watched parent (the root is always watched); `handleRemove`
+  then `RemovePath`/`RemovePrefix`es the playable files and, whenever either
+  removed a row (a single file *or* a directory subtree), calls
+  `Scanner.PruneEmptyFolders` to drop the now-childless Series/Season/Artist/
+  Album rows (the folder-only tail of `prune`, far cheaper than a full rescan) —
+  so emptying a season file-by-file prunes it live, not just on the next rescan.
+  macOS note: the kqueue backend surfaces writes to a watched dir's immediate
+  child dirs (Linux inotify does not), so tests assert on the `watched` set
+  rather than event presence/absence.
 - `internal/probe` — `ffprobe`-backed media probing behind a `Prober`
   interface (with `Noop` fallback); JSON parsing is unit-tested separately.
 - `internal/nfo` — parses local Kodi/Jellyfin `.nfo` sidecar metadata
