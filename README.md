@@ -156,7 +156,7 @@ curl http://localhost:8096/System/Info/Public
 
 `GET /System/Info/Public`, `GET /System/Info`,
 `POST /Users/AuthenticateByName`, `POST /Users/AuthenticateWithQuickConnect`,
-`POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect`,
+`GET|POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect`,
 `POST /QuickConnect/Authorize`, `GET /Users`, `GET /Users/Me`,
 `GET /Users/{id}`, `GET /UserViews`, `GET /Items` (with `parentId`,
 `recursive`, `includeItemTypes`), `GET /Items/{id}`,

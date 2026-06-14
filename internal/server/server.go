@@ -170,6 +170,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /branding/configuration", s.handleBrandingConfiguration)
 	s.mux.HandleFunc("GET /users/public", s.handlePublicUsers)
 	s.mux.HandleFunc("GET /quickconnect/enabled", s.handleQuickConnectEnabled)
+	// The web client probes GET first then falls back to POST; the
+	// sj14/jellyfin-go SDK uses POST. Register both so neither path 405s.
+	s.mux.HandleFunc("GET /quickconnect/initiate", s.handleQuickConnectInitiate)
 	s.mux.HandleFunc("POST /quickconnect/initiate", s.handleQuickConnectInitiate)
 	s.mux.HandleFunc("GET /quickconnect/connect", s.handleQuickConnectState)
 	s.mux.HandleFunc("POST /users/authenticatewithquickconnect", s.handleAuthenticateWithQuickConnect)

@@ -196,7 +196,9 @@ Minimal Jellyfin-compatible media server in Go.
   `quickConnectMaxPending` since Initiate is unauthenticated — without the cap it
   would be a trivial memory-exhaustion DoS; over the cap Initiate returns 429)
   backs the unauthenticated
-  `POST /QuickConnect/Initiate` (device gets a secret + 6-digit code) and
+  `GET`/`POST /QuickConnect/Initiate` (device gets a secret + 6-digit code; both
+  methods are registered — the web client probes GET then falls back to POST,
+  the sj14/jellyfin-go SDK uses POST) and
   `GET /QuickConnect/Connect?secret=` (poll), the auth-gated
   `POST /QuickConnect/Authorize?code=` (an existing session binds the code to its
   user), and `POST /Users/AuthenticateWithQuickConnect` (device exchanges the
