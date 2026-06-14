@@ -74,6 +74,14 @@ Minimal Jellyfin-compatible media server in Go.
   normally (the entry is indexed; ffprobe and ServeContent resolve to the
   target), which is how `gofin sample --real` builds large playable libraries
   from a few base files.
+  `WithChangeHook(func())` registers a callback fired at the end of every
+  mutating public method (`ScanLibrary`, `Index`, `RemovePath`/`RemovePrefix`
+  when something was removed; `RefreshItem` via `Index`). Since the watcher and
+  the HTTP refresh endpoints all mutate the index *through* the scanner, this one
+  hook observes every change — it's how live `LibraryChanged` events reach the
+  socket hub (`server.socketHub.NotifyLibraryChanged`) without `internal/watch`
+  knowing about the server. The hook runs under the scanner's mutation lock, so it
+  must be cheap and non-blocking (the hub's notify only arms a debounce timer).
 - `internal/watch` — `fsnotify` watcher that keeps the index live: new/modified
   files are indexed (debounced) and removals are dropped. Started by `serve`.
   To bound inotify watch count on large libraries (Linux
@@ -204,6 +212,22 @@ Minimal Jellyfin-compatible media server in Go.
   login mint the token via the shared `issueAccessToken` helper in `users.go`.
   Enabled by default; `WithQuickConnect(false)` / config `quick_connect: false`
   turns it off (handlers 401 and `/QuickConnect/Enabled` reports false).
+  The WebSocket lives in `socket.go`: `GET /socket` (behind `requireAuth`, which
+  accepts the token via the `api_key` query param the client uses) upgrades via
+  `github.com/coder/websocket` and runs Jellyfin's keepalive protocol — on
+  connect it sends `ForceKeepAlive` and replies to each client `KeepAlive` with a
+  `KeepAlive` (inbound subscription messages like `SessionsStart` are accepted and
+  ignored). A `socketHub` (`NewSocketHub`, injected via `WithHub` so the serve
+  command shares one instance) tracks connections; all writes for a connection
+  funnel through a single write-pump goroutine (coder/websocket allows one
+  concurrent writer) and `broadcast` drops to slow clients rather than blocking.
+  The hub's `NotifyLibraryChanged` is wired to `scanner.WithChangeHook`, so every
+  index mutation pushes a coalesced `LibraryChanged` and the web UI live-refreshes
+  (see the scanner note above). Because coder/websocket hijacks via
+  `http.ResponseController`, `statusRecorder` (the `accessLog` wrapper) implements
+  `Unwrap() http.ResponseWriter` so the hijack reaches the real writer. Remote
+  control / cast-to (Play/Playstate/GeneralCommand) and `/Sessions` are out of
+  scope.
 
 ## Conventions
 - Response bodies reuse `github.com/sj14/jellyfin-go/api` model structs so JSON

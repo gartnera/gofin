@@ -28,6 +28,7 @@ type Server struct {
 	scanner    *scanner.Scanner
 	mux        *http.ServeMux
 	webRoot    string
+	hub        *socketHub
 
 	quickConnectEnabled bool
 	quickConnect        *quickConnectStore
@@ -57,6 +58,14 @@ func WithQuickConnect(enabled bool) Option {
 	return func(s *Server) { s.quickConnectEnabled = enabled }
 }
 
+// WithHub injects the WebSocket hub used by the /socket endpoint. The serve
+// command shares one hub between the scanner's change hook (which broadcasts
+// LibraryChanged) and the HTTP server. When omitted, the server creates its own
+// hub so standalone/test use still works (it just receives no scanner events).
+func WithHub(h *socketHub) Option {
+	return func(s *Server) { s.hub = h }
+}
+
 // New constructs a Server and registers its routes.
 func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	s := &Server{
@@ -72,6 +81,9 @@ func New(client *ent.Client, serverName string, opts ...Option) *Server {
 	}
 	if s.scanner == nil {
 		s.scanner = scanner.New(client)
+	}
+	if s.hub == nil {
+		s.hub = NewSocketHub()
 	}
 	s.routes()
 	return s
@@ -146,6 +158,13 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap exposes the underlying ResponseWriter so http.ResponseController (used
+// by the WebSocket upgrade in handleSocket) can reach its Hijack method through
+// this wrapper.
+func (s *statusRecorder) Unwrap() http.ResponseWriter {
+	return s.ResponseWriter
+}
+
 // accessLog logs every non-static request with status and duration. The web
 // client makes a noisy number of asset requests; those are filtered out.
 func accessLog(next http.Handler) http.Handler {
@@ -176,6 +195,11 @@ func (s *Server) routes() {
 
 	// Quick Connect approval (requires an already-authenticated session).
 	s.mux.HandleFunc("POST /quickconnect/authorize", s.requireAuth(s.handleQuickConnectAuthorize))
+
+	// Live event WebSocket (keepalive handshake + server-pushed LibraryChanged).
+	// The web client connects with the token in the api_key query param, which
+	// requireAuth already accepts.
+	s.mux.HandleFunc("GET /socket", s.requireAuth(s.handleSocket))
 
 	// System / user info.
 	s.mux.HandleFunc("GET /system/info", s.requireAuth(s.handleSystemInfo))

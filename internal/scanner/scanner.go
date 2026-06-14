@@ -61,6 +61,12 @@ type Scanner struct {
 	// series enqueuing its Series) sends each id at most once until processed.
 	enqMu    sync.Mutex
 	enqueued map[uuid.UUID]struct{}
+
+	// onChange, when set, is invoked after a public method mutates the index
+	// (a scan, a single-file index, a removal/prune). It is the hook the socket
+	// hub uses to push LibraryChanged events; it must be cheap and non-blocking
+	// (it is called while mu is held) — see WithChangeHook.
+	onChange func()
 }
 
 // folderKey identifies a folder-like item within a library by its kind, name,
@@ -180,6 +186,24 @@ func WithImageCacheDir(dir string) Option {
 // WithMetadataTTL sets how long a cached remote response is considered fresh.
 func WithMetadataTTL(d time.Duration) Option {
 	return func(s *Scanner) { s.metaTTL = d }
+}
+
+// WithChangeHook registers a callback invoked whenever a public method mutates
+// the index (ScanLibrary, Index, RemovePath/RemovePrefix, PruneEmptyFolders).
+// Because the watcher and the HTTP refresh endpoints all mutate the index
+// through these methods, a single hook here observes every change. It is called
+// while the scanner's mutation lock is held, so it must return quickly and not
+// block (the socket hub's NotifyLibraryChanged only schedules a debounced
+// broadcast).
+func WithChangeHook(f func()) Option {
+	return func(s *Scanner) { s.onChange = f }
+}
+
+// notifyChange fires the change hook if one is registered.
+func (s *Scanner) notifyChange() {
+	if s.onChange != nil {
+		s.onChange()
+	}
 }
 
 // New returns a Scanner backed by the given ent client.
@@ -411,7 +435,11 @@ func (s *Scanner) ScanLibrary(ctx context.Context, lib *ent.Library) error {
 	if err := s.walk(ctx, lib, lib.Path, exts, fn, nil); err != nil {
 		return err
 	}
-	return s.prune(ctx, lib)
+	if err := s.prune(ctx, lib); err != nil {
+		return err
+	}
+	s.notifyChange()
+	return nil
 }
 
 // Index indexes (or re-indexes) a single file discovered by the watcher. It is
@@ -437,7 +465,11 @@ func (s *Scanner) Index(ctx context.Context, lib *ent.Library, path string) erro
 	if s.isIgnored(lib, path) {
 		return nil
 	}
-	return fn(ctx, lib, path, info)
+	if err := fn(ctx, lib, path, info); err != nil {
+		return err
+	}
+	s.notifyChange()
+	return nil
 }
 
 // walk recursively traverses dir, honouring .ignore files, and invokes fn for
@@ -695,7 +727,11 @@ func (s *Scanner) RefreshItem(ctx context.Context, item *ent.MediaItem) error {
 func (s *Scanner) RemovePath(ctx context.Context, path string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.client.MediaItem.Delete().Where(mediaitem.PathEQ(path)).Exec(ctx)
+	n, err := s.client.MediaItem.Delete().Where(mediaitem.PathEQ(path)).Exec(ctx)
+	if err == nil && n > 0 {
+		s.notifyChange()
+	}
+	return n, err
 }
 
 // RemovePrefix deletes every playable item whose file lives under dir (used when
@@ -705,7 +741,11 @@ func (s *Scanner) RemovePrefix(ctx context.Context, dir string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	prefix := strings.TrimSuffix(dir, string(filepath.Separator)) + string(filepath.Separator)
-	return s.client.MediaItem.Delete().Where(mediaitem.PathHasPrefix(prefix)).Exec(ctx)
+	n, err := s.client.MediaItem.Delete().Where(mediaitem.PathHasPrefix(prefix)).Exec(ctx)
+	if err == nil && n > 0 {
+		s.notifyChange()
+	}
+	return n, err
 }
 
 // PruneEmptyFolders drops folder items (Series/Season/Artist/Album) left without

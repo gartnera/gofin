@@ -2,7 +2,7 @@
 // matters when verifying the web client against gofin: console errors, uncaught
 // page errors, and network failures — split into gofin API failures (the ones
 // we care about fixing), bundled web-asset 404s, and external/3rd-party misses.
-import type { Page, Request, Response } from "playwright";
+import type { Page, Request, Response, WebSocket } from "playwright";
 
 const pathOf = (url: string): string => {
   try {
@@ -27,6 +27,32 @@ interface Timing {
   max: number;
 }
 
+// SocketRecord captures what the web client's live-events WebSocket actually did
+// so the crawl can assert the /socket endpoint works end-to-end (not just that
+// it didn't 404): the upgrade succeeded, the server sent its ForceKeepAlive
+// greeting, and the keepalive handshake round-tripped.
+interface SocketRecord {
+  url: string;
+  received: number;
+  sent: number;
+  serverMessageTypes: Set<string>;
+  clientMessageTypes: Set<string>;
+  errored?: string;
+  closed: boolean;
+}
+
+// messageType extracts the Jellyfin MessageType from a WebSocket frame payload,
+// or null if the frame isn't the JSON envelope we expect.
+const messageType = (payload: string | Buffer): string | null => {
+  try {
+    const s = typeof payload === "string" ? payload : payload.toString("utf8");
+    const o = JSON.parse(s) as { MessageType?: unknown };
+    return typeof o.MessageType === "string" ? o.MessageType : null;
+  } catch {
+    return null;
+  }
+};
+
 const bump = (map: Map<string, number>, key: string): void => {
   map.set(key, (map.get(key) ?? 0) + 1);
 };
@@ -34,6 +60,7 @@ const bump = (map: Map<string, number>, key: string): void => {
 export interface CollectorSummary {
   apiFailures: number;
   pageErrors: number;
+  socketFailures: number;
 }
 
 export class ErrorCollector {
@@ -45,6 +72,8 @@ export class ErrorCollector {
   // Per-route response timings for successful gofin API calls, so the crawl
   // surfaces slow endpoints (not just failing ones).
   readonly apiTimings = new Map<string, Timing>();
+  // Live-events WebSocket connections the web client opened to gofin's /socket.
+  readonly sockets: SocketRecord[] = [];
 
   constructor(private readonly baseURL: string) {}
 
@@ -53,6 +82,16 @@ export class ErrorCollector {
   }
   private isAsset(url: string): boolean {
     return url.startsWith(`${this.baseURL}/web/`);
+  }
+  // isSocket matches a ws(s):// URL pointing at this server's /socket endpoint.
+  private isSocket(url: string): boolean {
+    try {
+      const u = new URL(url);
+      const b = new URL(this.baseURL);
+      return (u.protocol === "ws:" || u.protocol === "wss:") && u.host === b.host && u.pathname === "/socket";
+    } catch {
+      return false;
+    }
   }
 
   /** Wire up the page event listeners. Call once per page. */
@@ -93,6 +132,36 @@ export class ErrorCollector {
         this.recordTiming(`${req.method()} ${routeOf(url)}`, t.responseEnd);
       }
     });
+    // Observe the live-events WebSocket so the crawl can validate the keepalive
+    // handshake and server-pushed messages, not just that /socket didn't 404.
+    page.on("websocket", (ws: WebSocket) => {
+      if (!this.isSocket(ws.url())) return;
+      const rec: SocketRecord = {
+        url: ws.url(),
+        received: 0,
+        sent: 0,
+        serverMessageTypes: new Set(),
+        clientMessageTypes: new Set(),
+        closed: false,
+      };
+      this.sockets.push(rec);
+      ws.on("framereceived", (data) => {
+        rec.received++;
+        const t = messageType(data.payload);
+        if (t) rec.serverMessageTypes.add(t);
+      });
+      ws.on("framesent", (data) => {
+        rec.sent++;
+        const t = messageType(data.payload);
+        if (t) rec.clientMessageTypes.add(t);
+      });
+      ws.on("socketerror", (err) => {
+        rec.errored = String(err);
+      });
+      ws.on("close", () => {
+        rec.closed = true;
+      });
+    });
   }
 
   noteScriptError(message: string): void {
@@ -125,6 +194,37 @@ export class ErrorCollector {
       .forEach((r) => console.log(`  ${r.max.toFixed(0).padStart(6)}ms max  ${r.avg.toFixed(0).padStart(6)}ms avg  x${r.count}  ${r.route}`));
   }
 
+  /** Validate the web client's live-events WebSocket(s) and print a report.
+   * Returns the number of problems found (0 = healthy). Requires that the client
+   * opened a /socket connection, the server greeted it with ForceKeepAlive, and
+   * the socket didn't error. */
+  reportSockets(): number {
+    console.log(`\n========== WEBSOCKET (/socket) ==========`);
+    console.log(`connections: ${this.sockets.length}`);
+    if (this.sockets.length === 0) {
+      console.log("  - FAIL: web client never opened a /socket WebSocket");
+      return 1;
+    }
+    let problems = 0;
+    this.sockets.forEach((s, i) => {
+      const srv = [...s.serverMessageTypes].join(", ") || "(none)";
+      const cli = [...s.clientMessageTypes].join(", ") || "(none)";
+      console.log(`  [${i}] received=${s.received} sent=${s.sent} closed=${s.closed}`);
+      console.log(`      server->client: {${srv}}`);
+      console.log(`      client->server: {${cli}}`);
+      if (s.errored) {
+        console.log(`      FAIL: socket error: ${s.errored}`);
+        problems++;
+      }
+      if (!s.serverMessageTypes.has("ForceKeepAlive")) {
+        console.log(`      FAIL: no ForceKeepAlive received from server`);
+        problems++;
+      }
+    });
+    if (problems === 0) console.log("  OK: handshake completed");
+    return problems;
+  }
+
   /** Print a human-readable summary and return the hard-failure tallies. */
   report(): CollectorSummary {
     const dump = (map: Map<string, number>, title: string) => {
@@ -147,8 +247,10 @@ export class ErrorCollector {
 
     if (this.externalFails.size) dump(this.externalFails, "external (informational)");
 
+    const socketFailures = this.reportSockets();
+
     this.reportSlowAPIs();
 
-    return { apiFailures: this.apiFails.size, pageErrors: uniquePageErrors.length };
+    return { apiFailures: this.apiFails.size, pageErrors: uniquePageErrors.length, socketFailures };
   }
 }

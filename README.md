@@ -61,6 +61,11 @@ unsupported.
   broadcast on UDP **7359** so stock clients find gofin on the LAN without
   typing its address. Enabled by default; disable with `discovery: false` in
   config.
+- [x] **WebSocket live updates** — the client's `/socket` connection is honored
+  (the `ForceKeepAlive`/`KeepAlive` handshake) and the server pushes
+  `LibraryChanged` whenever the index changes (watcher, periodic rescan, or a
+  manual refresh), so library views refresh without a reload. Remote control /
+  cast-to (Play/Playstate/GeneralCommand) over the socket is not implemented.
 
 ### Not supported
 

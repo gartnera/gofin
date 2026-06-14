@@ -55,9 +55,16 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 				return err
 			}
 
+			// One WebSocket hub, shared between the scanner's change hook (which
+			// broadcasts LibraryChanged) and the HTTP server's /socket endpoint.
+			hub := server.NewSocketHub()
+
 			// Share one scanner between the HTTP refresh endpoints and the
-			// filesystem watcher so their index mutations stay serialised.
-			scOpts := []scanner.Option{}
+			// filesystem watcher so their index mutations stay serialised. Its
+			// change hook drives live LibraryChanged events; because the watcher
+			// and refresh endpoints all mutate through the scanner, this one hook
+			// observes every change.
+			scOpts := []scanner.Option{scanner.WithChangeHook(hub.NotifyLibraryChanged)}
 			if cfg.Metadata.Enabled {
 				scOpts = append(scOpts,
 					scanner.WithMetadataProvider(tmdb.New(cfg.Metadata.TMDbToken)),
@@ -117,6 +124,7 @@ func serveCmd(loadCfg cfgLoader, openDB dbOpener) *cobra.Command {
 			opts := []server.Option{
 				server.WithScanner(sc),
 				server.WithQuickConnect(cfg.QuickConnectEnabled()),
+				server.WithHub(hub),
 			}
 			if cfg.WebRoot != "" {
 				opts = append(opts, server.WithWebRoot(cfg.WebRoot))
